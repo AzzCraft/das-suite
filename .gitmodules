@@ -1,0 +1,19 @@
+[submodule "src/dasops"]
+	path = src/dasops
+	url = https://github.com/<ORG>/dasops.git
+
+[submodule "src/cadence-oss"]
+	path = src/cadence-oss
+	url = https://github.com/<ORG>/cadence-oss.git
+
+[submodule "src/cadence-pro"]
+	path = src/cadence-pro
+	url = https://github.com/<ORG>/cadence-pro.git
+
+[submodule "src/cadence-enterprise"]
+	path = src/cadence-enterprise
+	url = https://github.com/<ORG>/cadence-enterprise.git
+
+[submodule "src/das-leafer"]
+	path = src/das-leafer
+	url = https://github.com/<ORG>/das-leafer.git
