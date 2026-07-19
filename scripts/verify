@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+export PYTHONDONTWRITEBYTECODE=1
+
+WORKSPACE=0
+if [[ "${1:-}" == "--standalone" ]]; then
+  shift
+elif [[ "${1:-}" == "--workspace" ]]; then
+  WORKSPACE=1
+  shift
+fi
+if [[ $# -ne 0 ]]; then
+  echo "Usage: scripts/verify [--standalone|--workspace]" >&2
+  exit 2
+fi
+
+python3 - <<'PY'
+import ast
+from pathlib import Path
+
+root = Path.cwd()
+for path in sorted((root / "dassuite").rglob("*.py")):
+    ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+PY
+
+python3 -m dassuite --help >/dev/null
+python3 -m dassuite closure check --repo-root "$ROOT"
+python3 -m dassuite report --repo-root "$ROOT" --json >/dev/null
+python3 -m dassuite status --repo-root "$ROOT" --json >/dev/null
+python3 -m unittest discover -s tests/cli -p 'test_*.py'
+python3 -m unittest discover -s tests/public -p 'test_*.py'
+
+python3 - <<'PY'
+from pathlib import Path
+import re
+
+root = Path.cwd()
+forbidden = [
+    "cadence-" + "pro",
+    "cadence-" + "enterprise",
+    "dasops-" + "pro",
+    "das-" + "leafer",
+]
+allowed_suffixes = {".md", ".py", ".json", ".yaml", ".yml", ".toml", ".txt"}
+public_files = [
+    *(root / name for name in (
+        "README.md", "THIRD_PARTY_NOTICES.md", "modules.yaml", "suite_lock.json",
+        "suite_version_closure.json", "suite.tooling_lock.json", "pyproject.toml",
+        "setup.py", "requirements.txt", "VERSION",
+    )),
+    *(root / "dassuite" / name for name in (
+        "__init__.py", "__main__.py", "closure.py", "core.py", "locks.py",
+        "refs.py", "report.py", "sync.py",
+    )),
+    root / "profiles" / "oss.json",
+    root / "docs" / "README.md",
+    root / "docs" / "USER_MANUAL.md",
+]
+paths = public_files if (root / "dassuite" / "rollback.py").exists() else root.rglob("*")
+for path in paths:
+    if not path.is_file() or ".git" in path.parts or path.suffix.lower() not in allowed_suffixes:
+        continue
+    text = path.read_text(encoding="utf-8", errors="replace").lower()
+    for value in forbidden:
+        if value in text:
+            raise SystemExit(f"non-public product name found in {path.relative_to(root)}")
+
+link_pattern = re.compile(r"\[[^\]]+\]\(([^)#]+)(?:#[^)]+)?\)")
+for path in [root / "README.md", *sorted((root / "docs").glob("*.md"))]:
+    if not path.is_file():
+        continue
+    for match in link_pattern.finditer(path.read_text(encoding="utf-8")):
+        target = match.group(1).strip()
+        if not target or target.startswith(("http://", "https://", "mailto:")):
+            continue
+        if not (path.parent / target).resolve().exists():
+            raise SystemExit(f"broken local link in {path.relative_to(root)}: {target}")
+PY
+
+if [[ "$WORKSPACE" -eq 1 ]]; then
+  python3 - <<'PY'
+import json
+import subprocess
+from pathlib import Path
+
+root = Path.cwd()
+lock = json.loads((root / "suite_lock.json").read_text(encoding="utf-8"))
+for module, entry in sorted(lock["modules"].items()):
+    repo = root.parent / module
+    if not (repo / ".git").exists():
+        raise SystemExit(f"workspace repository missing: {repo}")
+    actual = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+    expected = entry["lockedRef"]["pinValue"]
+    if actual != expected:
+        raise SystemExit(f"{module} lock mismatch: expected {expected}, actual {actual}")
+print("Workspace dependency pins: PASS")
+PY
+fi
+
+if find "$ROOT" -path "$ROOT/.git" -prune -o -type d \( -name '__pycache__' -o -name '.pytest_cache' \) -print | grep -q .; then
+  echo "forbidden generated cache directory found" >&2
+  exit 1
+fi
+
+echo "DAS Suite public verification: PASS"

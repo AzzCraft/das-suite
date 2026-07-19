@@ -1,0 +1,55 @@
+{
+  "$schema": "https://das-standard.dev/schemas/tooling_lock.schema.json",
+  "schemaVersion": "1.0.0",
+  "closureMode": "production",
+  "networkPolicy": "required",
+  "evidenceClass": "release",
+  "standardManifestVersion": "1.4.0",
+  "sourceOfTruth": {
+    "kind": "custom",
+    "uri": "public-component://das-suite",
+    "pinType": "version",
+    "pinValue": "1.0.0",
+    "floating": false,
+    "notes": "The external release manifest binds the final public Git commit."
+  },
+  "verifyRuntime": {
+    "kind": "git",
+    "uri": "https://github.com/AzzCraft/cadence-oss.git",
+    "pinType": "commit",
+    "pinValue": "449b9752aeb9ac25469a146c9907b5114a13979a",
+    "floating": false,
+    "notes": "exact prepared public commit"
+  },
+  "suiteVersionClosureRef": {
+    "kind": "file",
+    "uri": "suite_version_closure.json",
+    "pinType": "manifest",
+    "pinValue": "suite_version_closure.json",
+    "floating": false
+  },
+  "suiteLockRef": {
+    "kind": "file",
+    "uri": "suite_lock.json",
+    "pinType": "manifest",
+    "pinValue": "suite_lock.json",
+    "floating": false
+  },
+  "toolchain": [
+    {
+      "name": "python3",
+      "version": ">=3.10",
+      "manager": "system"
+    },
+    {
+      "name": "PyYAML",
+      "version": ">=6.0",
+      "manager": "pip"
+    },
+    {
+      "name": "git",
+      "version": ">=2.30",
+      "manager": "system"
+    }
+  ]
+}
