@@ -14,7 +14,7 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/das-standard.git",
         "pinType": "commit",
-        "pinValue": "08be1218067e2b814bf4cf4fedac545dad94e1be",
+        "pinValue": "dd3cf98d3980059228b7206d724a5c9caf52699a",
         "floating": false,
         "notes": "Prepared public release commit; confirm remote reachability before publication."
       },
@@ -30,7 +30,7 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/dasops.git",
         "pinType": "commit",
-        "pinValue": "423b234494a0cfb3a0dc232eaa1b2ec08e792ca8",
+        "pinValue": "db26beb55510e24ecf1fb34e5e71fe0d09d47ecb",
         "floating": false,
         "notes": "Prepared public release commit; confirm remote reachability before publication."
       },
