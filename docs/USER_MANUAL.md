@@ -1,8 +1,8 @@
 # DAS Suite user manual
 
-DAS Suite v1.0.1 manages one OSS-only dependency closure. It preserves the
+DAS Suite v1.1.0 manages one OSS-only dependency closure. It preserves the
 v1.0.0 public interface while pinning its dependencies to their final public
-release commits.
+release commits, including Cadence OSS v1.1.0.
 
 ## Commands
 
