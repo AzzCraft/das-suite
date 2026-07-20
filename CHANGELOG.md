@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 - 2026-07-20
+
+- Re-pinned the public OSS closure to the final public DASOps and Cadence
+  v1.0.0 tag-target commits instead of pull-request-head commits.
+- No API, schema, or supported-module changes from v1.0.0.
+
 ## 1.0.0 - 2026-07-20
 
 - Initial public OSS-only exact closure for das-standard, dasops, and cadence-oss.
