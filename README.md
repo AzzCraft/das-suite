@@ -1,81 +1,24 @@
 # DAS Suite
 
-DAS Suite is a beginner-friendly workspace repo that organizes multiple DAS toolchain repositories:
+DAS Suite is the exact locked closure manager for `das-standard`, `dasops`, and
+`cadence-oss`. Its public v1.0 surface is deliberately limited to those three
+repositories; it contains no GUI, private tiers, product scaffolding, or
+unlocked branch-tip synchronization.
 
-- One "suite" repo
-- A stable `src/` folder where optional modules are checked out
-- A single command that pulls in everything you are allowed to access
-
-The goal is to make it easy for an intern to set up a consistent DAS development environment without learning git submodules on day one.
-
-## What you get
-
-- `dassuite` CLI
-  - `dassuite sync` pulls modules in, skipping repos you cannot access
-  - `dassuite status` shows what is installed
-  - `dassuite new-product` scaffolds a product repo using `dasops`
-- Optional GUI (Streamlit)
-  - Pick which modules to add
-  - Create a product repo scaffold without memorizing commands
-
-## Module tiers
-
-Some modules may be private.
-
-- oss
-- pro
-- enterprise
-
-`dassuite sync` can be told to try only OSS, or to try everything and skip missing permissions.
-
-## Quickstart
-
-Clone the suite.
+Install and verify:
 
 ```bash
-git clone <DAS_SUITE_REPO_URL> --recurse-submodules
-cd das-suite
+python3 -m pip install -r requirements.txt
+python3 -m pip install .
+bash scripts/verify --full
 ```
 
-If you do not have access to every private module, cloning with `--recurse-submodules` may fail.
+Inspect the closure with `dassuite closure check`, `dassuite status`, and
+`dassuite report`. `dassuite sync` is locked by default and checks out the
+exact public commits named in `suite_lock.json`; a dirty or wrong-remote module
+fails instead of being silently rewritten.
 
-In that case:
-
-```bash
-git clone <DAS_SUITE_REPO_URL>
-cd das-suite
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
-
-dassuite sync --tier oss
-```
-
-To try everything you can access:
-
-```bash
-dassuite sync --tier all
-```
-
-## Suite layout
-
-- `modules.yaml`
-  - Single source of truth for module list, tiers, and checkout paths
-- `src/`
-  - Where modules are checked out
-- `gui/`
-  - Optional Streamlit GUI
-
-## Notes
-
-- This repository is tooling only.
-- The software you build is generated into a separate product repo by `dasops`.
-
-## Vendoring Cadence into a product repo
-
-After you scaffold a product repo, you can vendor Cadence from your local suite checkout:
-
-```bash
-dassuite vendor-cadence --product-root ../my-product --tier oss
-```
+The three released closure artifacts are `suite_lock.json`,
+`suite_version_closure.json`, and `suite.tooling_lock.json`. Use
+`bash scripts/verify --workspace` only when the three checked-out sibling
+repositories are expected to match those pins.

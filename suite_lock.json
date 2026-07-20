@@ -1,0 +1,67 @@
+{
+  "$schema": "https://das-standard.dev/schemas/suite_lock.schema.json",
+  "schemaVersion": "1.0.0",
+  "suiteId": "das-suite",
+  "suiteVersion": "1.0.0",
+  "standardManifestVersion": "1.4.0",
+  "syncMode": "locked",
+  "allowCloneTip": false,
+  "defaultOverridePolicy": "forbidden",
+  "modules": {
+    "das-standard": {
+      "role": "standard_repo",
+      "lockedRef": {
+        "kind": "git",
+        "uri": "https://github.com/AzzCraft/das-standard.git",
+        "pinType": "commit",
+        "pinValue": "ac5a52fe9e8997392b3d21a488097e394d8e3102",
+        "floating": false,
+        "notes": "Prepared public release commit; confirm remote reachability before publication."
+      },
+      "required": true,
+      "overridePolicy": "forbidden",
+      "allowedLocalState": [
+        "present_locked_match"
+      ]
+    },
+    "dasops": {
+      "role": "factory_repo",
+      "lockedRef": {
+        "kind": "git",
+        "uri": "https://github.com/AzzCraft/dasops.git",
+        "pinType": "commit",
+        "pinValue": "db26beb55510e24ecf1fb34e5e71fe0d09d47ecb",
+        "floating": false,
+        "notes": "Prepared public release commit; confirm remote reachability before publication."
+      },
+      "required": true,
+      "overridePolicy": "forbidden",
+      "allowedLocalState": [
+        "present_locked_match"
+      ],
+      "dependsOn": [
+        "das-standard"
+      ]
+    },
+    "cadence-oss": {
+      "role": "verify_runtime_repo",
+      "lockedRef": {
+        "kind": "git",
+        "uri": "https://github.com/AzzCraft/cadence-oss.git",
+        "pinType": "commit",
+        "pinValue": "bef39eefdf908dcd58fa6c5499e63501b187fd49",
+        "floating": false,
+        "notes": "Prepared public release commit; confirm remote reachability before publication."
+      },
+      "required": true,
+      "overridePolicy": "forbidden",
+      "allowedLocalState": [
+        "present_locked_match"
+      ],
+      "dependsOn": [
+        "das-standard"
+      ]
+    }
+  },
+  "notes": "Public OSS-only closure pinned to the prepared public commits. Confirm remote reachability before publication."
+}

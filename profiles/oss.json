@@ -1,0 +1,24 @@
+{
+  "profile": "oss",
+  "description": "Open-source DAS repositories only.",
+  "required": [
+    "das-standard",
+    "dasops",
+    "cadence-oss"
+  ],
+  "optional": [],
+  "modules": {
+    "das-standard": {
+      "tier": "oss",
+      "required": true
+    },
+    "dasops": {
+      "tier": "oss",
+      "required": true
+    },
+    "cadence-oss": {
+      "tier": "oss",
+      "required": true
+    }
+  }
+}

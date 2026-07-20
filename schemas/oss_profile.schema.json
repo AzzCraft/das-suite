@@ -1,0 +1,1 @@
+{"type":"object","additionalProperties":false,"required":["profile","description","required","optional","modules"],"properties":{"profile":{"const":"oss"},"description":{"type":"string"},"required":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string"}},"optional":{"const":[]},"modules":{"type":"object"}}}

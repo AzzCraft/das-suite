@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dassuite"
 version = "1.0.0"
-description = "DAS Suite: manage DAS toolchain repos as optional modules (submodules/clones)"
+description = "DAS Suite: exact locked closure manager for public DAS repositories"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -13,7 +13,8 @@ authors = [
   { name = "DAS Suite Contributors" }
 ]
 dependencies = [
-  "PyYAML>=6.0",
+  "PyYAML==6.0.3",
+  "jsonschema==4.26.0",
 ]
 
 [project.scripts]

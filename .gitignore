@@ -52,6 +52,7 @@ coverage.xml
 
 # Logs
 *.log
+!samples/evidence_bundles/public_demo/verify.log
 
 # dotenv
 .env

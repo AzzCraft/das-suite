@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "1.0.0",
+  "$schema": "schemas/das-standard/suite_version_closure.schema.json",
+  "standardVersion": "1.4.0",
+  "standardManifestVersion": "1.4.0",
+  "suiteVersion": "1.0.0",
+  "factoryVersion": "1.0.0",
+  "verifyRuntimeVersion": "1.0.0",
+  "closureUpdatedAt": "2026-07-20T09:02:00Z",
+  "suiteLockRef": {
+    "kind": "file",
+    "uri": "suite_lock.json",
+    "pinType": "manifest",
+    "pinValue": "suite_lock.json",
+    "floating": false
+  },
+  "lockRefs": {
+    "suiteToolingLock": {
+      "kind": "file",
+      "uri": "suite.tooling_lock.json",
+      "pinType": "manifest",
+      "pinValue": "suite.tooling_lock.json",
+      "floating": false
+    }
+  },
+  "refs": {
+    "standard": {
+      "kind": "git",
+      "uri": "https://github.com/AzzCraft/das-standard.git",
+      "pinType": "commit",
+      "pinValue": "ac5a52fe9e8997392b3d21a488097e394d8e3102",
+      "floating": false,
+      "notes": "Prepared public release commit; confirm remote reachability before publication."
+    },
+    "suite": {
+      "kind": "custom",
+      "uri": "public-component://das-suite",
+      "pinType": "version",
+      "pinValue": "1.0.0",
+      "floating": false,
+      "notes": "The external release manifest binds the final public Git commit."
+    },
+    "factory": {
+      "kind": "git",
+      "uri": "https://github.com/AzzCraft/dasops.git",
+      "pinType": "commit",
+      "pinValue": "db26beb55510e24ecf1fb34e5e71fe0d09d47ecb",
+      "floating": false,
+      "notes": "Prepared public release commit; confirm remote reachability before publication."
+    },
+    "verifyRuntime": {
+      "kind": "git",
+      "uri": "https://github.com/AzzCraft/cadence-oss.git",
+      "pinType": "commit",
+      "pinValue": "bef39eefdf908dcd58fa6c5499e63501b187fd49",
+      "floating": false,
+      "notes": "Prepared public release commit; confirm remote reachability before publication."
+    }
+  },
+  "closureProfiles": {
+    "oss-only": {
+      "description": "Open-source core",
+      "requiredModules": [
+        "das-standard",
+        "dasops",
+        "cadence-oss"
+      ],
+      "optionalModules": []
+    }
+  }
+}

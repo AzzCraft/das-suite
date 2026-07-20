@@ -1,41 +1,27 @@
-# DAS Suite module catalog
-#
-# Tip
-# - Set DAS_SUITE_GIT_BASE to your GitHub org URL, for example:
-#   export DAS_SUITE_GIT_BASE="https://github.com/acme"
-#
-# Tier ordering
-# - oss < pro < enterprise
-
-defaultGitBase: "https://github.com/<ORG>"
+# Public DAS Suite module catalog
+defaultGitBase: "https://github.com/AzzCraft"
 
 modules:
+  - id: das-standard
+    repo: "das-standard"
+    path: "src/das-standard"
+    tier: "oss"
+    required: true
+    role: "standard_repo"
+    closureRef: "standard"
+
   - id: dasops
     repo: "dasops"
     path: "src/dasops"
     tier: "oss"
     required: true
+    role: "factory_repo"
+    closureRef: "factory"
 
   - id: cadence-oss
     repo: "cadence-oss"
     path: "src/cadence-oss"
     tier: "oss"
     required: true
-
-  - id: cadence-pro
-    repo: "cadence-pro"
-    path: "src/cadence-pro"
-    tier: "pro"
-    required: false
-
-  - id: cadence-enterprise
-    repo: "cadence-enterprise"
-    path: "src/cadence-enterprise"
-    tier: "enterprise"
-    required: false
-
-  - id: das-leafer
-    repo: "das-leafer"
-    path: "src/das-leafer"
-    tier: "oss"
-    required: false
+    role: "verify_runtime_repo"
+    closureRef: "verifyRuntime"
