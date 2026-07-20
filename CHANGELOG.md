@@ -1,8 +1,9 @@
 # Changelog
 
-## v1.0.0 - Current
+## 1.0.0 - 2026-07-20
 
-- Imported `das-suite` into the DAS Tools control workspace as a fresh child Git
-  repository.
-- Removed stale DAS identity history from current-facing child content. Historical
-  release context remains parent-audit-only.
+- Initial public OSS-only exact closure for das-standard, dasops, and cadence-oss.
+- Added canonical schema validation, locked-default synchronization, closure
+  status/report commands, and standalone/workspace verification.
+- Supports Python 3.10+; the v1.0 public release intentionally excludes the
+  prototype GUI, private tiers, and product-scaffolding commands.

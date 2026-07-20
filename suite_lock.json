@@ -1,9 +1,6 @@
 {
   "$schema": "https://das-standard.dev/schemas/suite_lock.schema.json",
   "schemaVersion": "1.0.0",
-  "closureMode": "production",
-  "networkPolicy": "required",
-  "evidenceClass": "release",
   "suiteId": "das-suite",
   "suiteVersion": "1.0.0",
   "standardManifestVersion": "1.4.0",
@@ -17,9 +14,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/das-standard.git",
         "pinType": "commit",
-        "pinValue": "7cf4a4de07ced2e96c5211bb50e7add644f7d4c6",
+        "pinValue": "08be1218067e2b814bf4cf4fedac545dad94e1be",
         "floating": false,
-        "notes": "exact prepared public commit"
+        "notes": "Prepared public release commit; confirm remote reachability before publication."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -33,9 +30,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/dasops.git",
         "pinType": "commit",
-        "pinValue": "dfc8f244986695c6d1df8085b1e1cfa25c1730f4",
+        "pinValue": "423b234494a0cfb3a0dc232eaa1b2ec08e792ca8",
         "floating": false,
-        "notes": "exact prepared public commit"
+        "notes": "Prepared public release commit; confirm remote reachability before publication."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -52,9 +49,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/cadence-oss.git",
         "pinType": "commit",
-        "pinValue": "449b9752aeb9ac25469a146c9907b5114a13979a",
+        "pinValue": "bef39eefdf908dcd58fa6c5499e63501b187fd49",
         "floating": false,
-        "notes": "exact prepared public commit"
+        "notes": "Prepared public release commit; confirm remote reachability before publication."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -66,5 +63,5 @@
       ]
     }
   },
-  "notes": "Public OSS-only closure; final pins are regenerated from prepared public commits."
+  "notes": "Public OSS-only closure pinned to the prepared public commits. Confirm remote reachability before publication."
 }

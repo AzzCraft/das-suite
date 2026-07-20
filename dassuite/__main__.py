@@ -37,13 +37,10 @@ def main(argv=None) -> int:
 
     report = sub.add_parser("report", help="Report public module and closure state")
     report.add_argument("--json", action="store_true")
+    report.add_argument("--workspace", action="store_true", help="Fail on required disallowed local module states")
     report.add_argument("--repo-root", default=".")
 
     sync = sub.add_parser("sync", help="Clone or update public DAS modules")
-    sync.add_argument("--locked", action="store_true", help="Require exact suite_lock.json commits")
-    sync.add_argument("--git-base", default=None, help="Git remote base for unlocked sync")
-    sync.add_argument("--ssh", action="store_true")
-    sync.add_argument("--no-submodules", action="store_true")
     sync.add_argument("--json", action="store_true")
     sync.add_argument("--repo-root", default=".")
 
@@ -77,22 +74,22 @@ def main(argv=None) -> int:
         return 0 if not issues else 2
 
     if args.cmd == "report":
-        payload = generate_report(root)
+        payload = generate_report(root, enforce_workspace=bool(args.workspace))
         print(json.dumps(payload, indent=2) if args.json else render_report_text(payload))
         return 0 if not payload["issues"] else 2
 
     if args.cmd == "sync":
         manifest = load_manifest(root)
-        git_base = effective_git_base(manifest, args.git_base)
+        git_base = effective_git_base(manifest, None)
         ok, results, issues = sync_modules(
             suite_root=root,
             tier="oss",
             git_base=git_base,
-            use_ssh=bool(args.ssh),
-            prefer_submodules=not args.no_submodules,
-            locked=bool(args.locked),
+            use_ssh=False,
+            prefer_submodules=False,
+            locked=True,
         )
-        payload = {"locked": bool(args.locked), "gitBase": git_base, "issues": issues, "results": results}
+        payload = {"locked": True, "gitBase": git_base, "issues": issues, "results": results}
         if args.json:
             print(json.dumps(payload, indent=2))
         else:

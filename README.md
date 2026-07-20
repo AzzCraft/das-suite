@@ -1,48 +1,24 @@
 # DAS Suite
 
-DAS Suite is the open-source workspace and exact-version closure manager for
-three public repositories:
+DAS Suite is the exact locked closure manager for `das-standard`, `dasops`, and
+`cadence-oss`. Its public v1.0 surface is deliberately limited to those three
+repositories; it contains no GUI, private tiers, product scaffolding, or
+unlocked branch-tip synchronization.
 
-- `das-standard`
-- `dasops`
-- `cadence-oss`
-
-The lock files contain only public GitHub URLs and immutable 40-character
-commit IDs. DAS Suite does not contain or describe commercial/private modules
-in this public v1 boundary.
-
-## Install
+Install and verify:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
 python3 -m pip install -r requirements.txt
-python3 -m pip install -e .
+python3 -m pip install .
+bash scripts/verify --full
 ```
 
-## Check the closure
+Inspect the closure with `dassuite closure check`, `dassuite status`, and
+`dassuite report`. `dassuite sync` is locked by default and checks out the
+exact public commits named in `suite_lock.json`; a dirty or wrong-remote module
+fails instead of being silently rewritten.
 
-```bash
-python3 -m dassuite closure check
-python3 -m dassuite status
-python3 -m dassuite report
-```
-
-## Sync exact public commits
-
-```bash
-python3 -m dassuite sync --locked
-```
-
-Locked sync clones only the three modules above and checks out the exact commits
-in `suite_lock.json`. An existing dirty or mismatched checkout fails closed.
-
-## Verification
-
-```bash
-bash ./scripts/verify
-```
-
-Use `bash ./scripts/verify --workspace` only in a release workspace that has
-the three sibling public repositories; it additionally checks their current
-Git commits against the lock.
+The three released closure artifacts are `suite_lock.json`,
+`suite_version_closure.json`, and `suite.tooling_lock.json`. Use
+`bash scripts/verify --workspace` only when the three checked-out sibling
+repositories are expected to match those pins.

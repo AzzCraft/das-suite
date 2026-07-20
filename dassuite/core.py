@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -187,79 +186,3 @@ def read_suite_version(suite_root: Path) -> str:
             return match.group(1)
 
     return "0.0.0"
-
-
-def run_dasops_create(
-    *,
-    suite_root: Path,
-    dest: Path,
-    master_doc: Path,
-    ui_spec: Path,
-    change_id: str,
-    intent: str,
-) -> tuple[int, str]:
-    dasops_root = _release_sibling_tool_root(suite_root, "dasops")
-
-    env = os.environ.copy()
-    env["PYTHONPATH"] = f"{dasops_root}{os.pathsep}{env.get('PYTHONPATH', '')}".strip(
-        os.pathsep
-    )
-
-    cmd = [
-        sys.executable,
-        "-m",
-        "dasops",
-        "create",
-        "--factory-root",
-        str(dasops_root),
-        "--dest",
-        str(dest),
-        "--master-doc",
-        str(master_doc),
-        "--ui-spec",
-        str(ui_spec),
-        "--change-id",
-        change_id,
-        "--intent",
-        intent,
-    ]
-
-    return run(cmd, cwd=suite_root, env=env)
-
-
-def _release_sibling_tool_root(suite_root: Path, tool_name: str) -> Path:
-    suite_root = suite_root.expanduser().resolve()
-    tool_root = (suite_root.parent / tool_name).resolve()
-    if not tool_root.exists():
-        raise SystemExit(
-            f"{tool_name} module not found in release package at: {tool_root}. "
-            f"Pass --repo-root as <release-root>/das-suite with sibling "
-            f"<release-root>/{tool_name} present."
-        )
-    return tool_root
-
-
-def run_vendor_cadence(
-    suite_root: Path,
-    product_root: Path,
-    *,
-    tier: str,
-    force: bool,
-) -> tuple[int, str, str]:
-    script = (product_root / "scripts" / "install_cadence_vendor.sh").resolve()
-    if not script.exists():
-        return (2, "", f"Missing {script}. Is this a DAS product repo?\n")
-
-    cmd = [
-        "bash",
-        str(script),
-        "--from-suite",
-        str(suite_root),
-        "--tier",
-        tier,
-    ]
-    if force:
-        cmd.append("--force")
-
-    rc, out = run(cmd, cwd=product_root)
-    return rc, out, ""

@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from jsonschema import Draft202012Validator
+
 from .core import (
     Module,
     git_output,
@@ -39,6 +41,36 @@ OPTIONAL_CLOSURE_REF_TO_MODULE: dict[str, str] = {}
 
 ZERO_PIN = "0000000000000000000000000000000000000000"
 RELEASE_PACKAGE_DIR_NAME = "DAS_TOOLS_v1_0_0"
+CANONICAL_SCHEMA_FILES = {
+    "suite_lock.json": "schemas/das-standard/suite_lock.schema.json",
+    "suite_version_closure.json": "schemas/das-standard/suite_version_closure.schema.json",
+    "suite.tooling_lock.json": "schemas/das-standard/tooling_lock.schema.json",
+    "modules.yaml": "schemas/modules.schema.json",
+    "profiles/oss.json": "schemas/oss_profile.schema.json",
+}
+
+
+def _validate_canonical_schemas(suite_root: Path) -> list[str]:
+    """Validate all released closure inputs with the checked-in v1.4 schemas."""
+    import yaml
+
+    issues: list[str] = []
+    for document_name, schema_name in CANONICAL_SCHEMA_FILES.items():
+        document_path = suite_root / document_name
+        schema_path = suite_root / schema_name
+        if not schema_path.is_file():
+            issues.append(f"missing canonical schema: {schema_name}")
+            continue
+        try:
+            document = yaml.safe_load(document_path.read_text(encoding="utf-8"))
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            errors = sorted(Draft202012Validator(schema).iter_errors(document), key=lambda item: list(item.path))
+            for error in errors:
+                location = ".".join(str(item) for item in error.path) or "root"
+                issues.append(f"{document_name} canonical schema {location}: {error.message}")
+        except (OSError, ValueError, yaml.YAMLError) as exc:
+            issues.append(f"{document_name} canonical schema validation failed: {exc}")
+    return issues
 
 
 def _is_placeholder_uri(uri: str) -> bool:
@@ -189,6 +221,8 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
     issues: list[str] = []
     suite_root = suite_root.resolve()
 
+    issues.extend(_validate_canonical_schemas(suite_root))
+
     manifest = load_manifest(suite_root)
     modules = parse_modules(manifest)
     modules_by_id = {module.id: module for module in modules}
@@ -283,6 +317,14 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
                         context=f"refs.{ref_name}",
                     )
                 )
+
+            suite_ref = refs.get("suite")
+            if suite_ref is None:
+                issues.append("suite_version_closure.json refs.suite is required")
+            else:
+                issues.extend(validate_structured_ref_dict(suite_ref, "refs.suite"))
+                if suite_ref.get("kind") != "custom" or suite_ref.get("uri") != "public-component://das-suite":
+                    issues.append("suite_version_closure.json refs.suite must be the public das-suite version ref")
 
             for ref_name, module_id in OPTIONAL_CLOSURE_REF_TO_MODULE.items():
                 ref = refs.get(ref_name)
@@ -450,6 +492,19 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
                     f"suite_version_closure.json refs.{ref_name} must match suite_lock.json module {module_id}"
                 )
 
+        profile_path = suite_root / "profiles" / "oss.json"
+        try:
+            profile = json.loads(profile_path.read_text(encoding="utf-8"))
+            catalog_ids = {module.id for module in modules}
+            lock_ids = set(lock_modules)
+            profile_ids = set(profile.get("required", []))
+            if catalog_ids != lock_ids or catalog_ids != profile_ids:
+                issues.append("modules.yaml, profiles/oss.json, and suite_lock.json must have the same module IDs")
+            if set(profile.get("modules", {})) != catalog_ids:
+                issues.append("profiles/oss.json modules must match modules.yaml")
+        except (OSError, ValueError):
+            issues.append("profiles/oss.json is unreadable")
+
     if closure is not None and tooling_lock is not None:
         if closure.get("standardManifestVersion") != tooling_lock.get("standardManifestVersion"):
             issues.append(
@@ -542,38 +597,10 @@ def build_status_payload(suite_root: Path) -> list[dict[str, Any]]:
         item["currentHead"] = git_output(path, "rev-parse", "HEAD") or None
         item["currentRemote"] = git_output(path, "remote", "get-url", "origin") or None
 
-        # In a monorepo, _repo_dirty reports ALL changes across the whole
-        # worktree — including unrelated sibling modules.  When a suite checkout
-        # observes sibling repos from the same worktree, scope dirtiness to the
-        # module directory and treat the current workspace HEAD as authoritative
-        # for status reporting.  Clean-room synced modules under src/ still use
-        # the pinned production ref comparison below.
-        _locked_ref_tmp = lock_entry.get("lockedRef", {}) if managed else {}
-        _suite_top = git_output(suite_root, "rev-parse", "--show-toplevel")
-        _mod_top = git_output(path, "rev-parse", "--show-toplevel")
-        _same_worktree = bool(_suite_top and _suite_top == _mod_top)
-        _configured_path = module_path(suite_root, module).resolve()
-        _sibling_path = (suite_root.parent / module.id).resolve()
-        _active_workspace_sibling = _same_worktree and path.resolve() == _sibling_path and not path_present(_configured_path)
-
-        if _same_worktree:
-            is_dirty = _module_dirty(path)
-        else:
-            is_dirty = _repo_dirty(path)
+        is_dirty = _repo_dirty(path)
 
         if is_dirty:
-            # For offline fixture refs in the same worktree, still align
-            # expectedPinValue with currentHead even when dirty — the
-            # stale offline fixture pin is never meaningful in a monorepo.
-            if _same_worktree:
-                item["expectedPinValue"] = item["currentHead"]
             item["state"] = "dirty"
-            payload.append(item)
-            continue
-
-        if managed and _active_workspace_sibling:
-            item["expectedPinValue"] = item["currentHead"]
-            item["state"] = "present_locked_match"
             payload.append(item)
             continue
 
@@ -639,7 +666,7 @@ def generate_suite_version_closure(suite_root: Path) -> dict[str, Any]:
         if version_file.exists():
             component_versions[mod.id] = version_file.read_text().strip()
         elif mod_path.exists() and is_git_repo(mod_path):
-            head = git_output(mod_path, ["rev-parse", "HEAD"]).strip()
+            head = git_output(mod_path, "rev-parse", "HEAD").strip()
             component_versions[mod.id] = head[:12]
 
     standard_version = component_versions.get("das-standard", "unknown")

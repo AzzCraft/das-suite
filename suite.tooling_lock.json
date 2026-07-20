@@ -1,9 +1,6 @@
 {
   "$schema": "https://das-standard.dev/schemas/tooling_lock.schema.json",
   "schemaVersion": "1.0.0",
-  "closureMode": "production",
-  "networkPolicy": "required",
-  "evidenceClass": "release",
   "standardManifestVersion": "1.4.0",
   "sourceOfTruth": {
     "kind": "custom",
@@ -17,9 +14,9 @@
     "kind": "git",
     "uri": "https://github.com/AzzCraft/cadence-oss.git",
     "pinType": "commit",
-    "pinValue": "449b9752aeb9ac25469a146c9907b5114a13979a",
+    "pinValue": "bef39eefdf908dcd58fa6c5499e63501b187fd49",
     "floating": false,
-    "notes": "exact prepared public commit"
+    "notes": "Prepared public release commit; confirm remote reachability before publication."
   },
   "suiteVersionClosureRef": {
     "kind": "file",
@@ -38,17 +35,17 @@
   "toolchain": [
     {
       "name": "python3",
-      "version": ">=3.10",
+      "version": "3.10.12",
       "manager": "system"
     },
     {
       "name": "PyYAML",
-      "version": ">=6.0",
+      "version": "6.0.3",
       "manager": "pip"
     },
     {
       "name": "git",
-      "version": ">=2.30",
+      "version": "2.30",
       "manager": "system"
     }
   ]

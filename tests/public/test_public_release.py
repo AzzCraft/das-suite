@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -59,6 +60,16 @@ class PublicReleaseTests(unittest.TestCase):
     def test_closure_validator_passes(self) -> None:
         self.assertEqual(validate_closure_artifacts(ROOT), [])
 
+    def test_local_canonical_schemas_match_das_standard_v1_4_0(self) -> None:
+        expected = {
+            "suite_lock.schema.json": "64532328f53009b64ec71a9461b7da3c4ed8648a6b9d958446c245684e9953d8",
+            "suite_version_closure.schema.json": "330210438d4fbc0e879d528526c6a7efb4c638ba7f70419efcaf58fd9086e8e8",
+            "tooling_lock.schema.json": "3ab5e0a50c5e6dd355b3d882eab2a2258b1daf170eb8c9d9541b6cf2ee380cf5",
+        }
+        for name, digest in expected.items():
+            payload = (ROOT / "schemas" / "das-standard" / name).read_bytes()
+            self.assertEqual(hashlib.sha256(payload).hexdigest(), digest, name)
+
     def test_public_tree_has_no_private_product_names(self) -> None:
         forbidden = ["cadence-" + "pro", "cadence-" + "enterprise", "dasops-" + "pro", "das-" + "leafer"]
         public_files = [
@@ -104,10 +115,11 @@ class PublicReleaseTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("Closure artifacts: PASS", result.stdout)
 
-    def test_sync_help_documents_locked_mode(self) -> None:
+    def test_sync_help_documents_locked_default(self) -> None:
         result = self.run_cli("sync", "--help")
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn("--locked", result.stdout)
+        self.assertIn("--repo-root", result.stdout)
+        self.assertNotIn("--git-base", result.stdout)
 
 
 if __name__ == "__main__":

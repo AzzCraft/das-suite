@@ -5,17 +5,24 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export PYTHONDONTWRITEBYTECODE=1
 
+MODE="fast"
 WORKSPACE=0
-if [[ "${1:-}" == "--standalone" ]]; then
-  shift
-elif [[ "${1:-}" == "--workspace" ]]; then
-  WORKSPACE=1
-  shift
-fi
-if [[ $# -ne 0 ]]; then
-  echo "Usage: scripts/verify [--standalone|--workspace]" >&2
+case "${1:-}" in
+  ""|--fast|--standalone) ;;
+  --full) MODE="full" ;;
+  --workspace) WORKSPACE=1 ;;
+  *)
+    echo "Usage: scripts/verify [--fast|--full|--standalone|--workspace]" >&2
+    exit 2
+    ;;
+esac
+if [[ $# -gt 1 ]]; then
+  echo "Usage: scripts/verify [--fast|--full|--standalone|--workspace]" >&2
   exit 2
 fi
+
+SOURCE_ID="$(git -C "$ROOT" rev-parse --verify HEAD 2>/dev/null || printf '%s' archive)"
+printf '%s\n' "mode=$MODE suiteVersion=$(tr -d '[:space:]' < VERSION) standardManifestVersion=1.4.0 source=$SOURCE_ID python=$(python3 --version 2>&1)"
 
 python3 - <<'PY'
 import ast
@@ -30,6 +37,9 @@ python3 -m dassuite --help >/dev/null
 python3 -m dassuite closure check --repo-root "$ROOT"
 python3 -m dassuite report --repo-root "$ROOT" --json >/dev/null
 python3 -m dassuite status --repo-root "$ROOT" --json >/dev/null
+# The public release allowlist ships these complete OSS-focused suites. Legacy
+# private-tier tests remain outside the public package and are not a release
+# verification surface.
 python3 -m unittest discover -s tests/cli -p 'test_*.py'
 python3 -m unittest discover -s tests/public -p 'test_*.py'
 
@@ -81,23 +91,7 @@ for path in [root / "README.md", *sorted((root / "docs").glob("*.md"))]:
 PY
 
 if [[ "$WORKSPACE" -eq 1 ]]; then
-  python3 - <<'PY'
-import json
-import subprocess
-from pathlib import Path
-
-root = Path.cwd()
-lock = json.loads((root / "suite_lock.json").read_text(encoding="utf-8"))
-for module, entry in sorted(lock["modules"].items()):
-    repo = root.parent / module
-    if not (repo / ".git").exists():
-        raise SystemExit(f"workspace repository missing: {repo}")
-    actual = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
-    expected = entry["lockedRef"]["pinValue"]
-    if actual != expected:
-        raise SystemExit(f"{module} lock mismatch: expected {expected}, actual {actual}")
-print("Workspace dependency pins: PASS")
-PY
+  python3 -m dassuite report --workspace --repo-root "$ROOT" --json >/dev/null
 fi
 
 if find "$ROOT" -path "$ROOT/.git" -prune -o -type d \( -name '__pycache__' -o -name '.pytest_cache' \) -print | grep -q .; then
@@ -105,4 +99,8 @@ if find "$ROOT" -path "$ROOT/.git" -prune -o -type d \( -name '__pycache__' -o -
   exit 1
 fi
 
+python3 - <<PY
+import json
+print(json.dumps({"schemaVersion":"1.0.0","mode":"$MODE","workspace":bool($WORKSPACE),"status":"PASS"}, sort_keys=True))
+PY
 echo "DAS Suite public verification: PASS"

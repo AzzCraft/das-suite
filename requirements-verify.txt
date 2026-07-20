@@ -1,0 +1,5 @@
+PyYAML==6.0.3
+jsonschema==4.26.0
+pytest==8.4.2
+pip-audit==2.10.1
+bandit==1.9.4

@@ -328,7 +328,7 @@ def sync_modules(
     git_base: str | None = None,
     use_ssh: bool = False,
     prefer_submodules: bool = True,
-    locked: bool = False,
+    locked: bool = True,
     allow_dirty_modules: list[str] | None = None,
     closure_mode: str | None = None,
     lock_path: Path | None = None,
