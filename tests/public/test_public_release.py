@@ -16,6 +16,11 @@ from dassuite.core import Module, module_path
 
 ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_MODULES = {"das-standard", "dasops", "cadence-oss"}
+FINAL_PUBLIC_RELEASE_COMMITS = {
+    "das-standard": "ac5a52fe9e8997392b3d21a488097e394d8e3102",
+    "dasops": "01f54872349812598190ecf0b28e0dcad2927914",
+    "cadence-oss": "e4054537c0962441037dd5403d1a1692434fde73",
+}
 
 
 class PublicReleaseTests(unittest.TestCase):
@@ -47,6 +52,16 @@ class PublicReleaseTests(unittest.TestCase):
             self.assertRegex(ref["pinValue"], r"^[0-9a-f]{40}$")
             self.assertEqual(ref["uri"], f"https://github.com/AzzCraft/{module}.git")
             self.assertFalse(ref["floating"])
+
+    def test_lock_pins_final_public_release_commits(self) -> None:
+        lock = json.loads((ROOT / "suite_lock.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            {
+                module: item["lockedRef"]["pinValue"]
+                for module, item in lock["modules"].items()
+            },
+            FINAL_PUBLIC_RELEASE_COMMITS,
+        )
 
     def test_three_lock_views_agree(self) -> None:
         lock = json.loads((ROOT / "suite_lock.json").read_text(encoding="utf-8"))

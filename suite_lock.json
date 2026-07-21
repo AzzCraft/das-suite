@@ -2,7 +2,7 @@
   "$schema": "https://das-standard.dev/schemas/suite_lock.schema.json",
   "schemaVersion": "1.0.0",
   "suiteId": "das-suite",
-  "suiteVersion": "1.0.0",
+  "suiteVersion": "1.0.1",
   "standardManifestVersion": "1.4.0",
   "syncMode": "locked",
   "allowCloneTip": false,
@@ -16,7 +16,7 @@
         "pinType": "commit",
         "pinValue": "ac5a52fe9e8997392b3d21a488097e394d8e3102",
         "floating": false,
-        "notes": "Prepared public release commit; confirm remote reachability before publication."
+        "notes": "Final public v1.4.0 tag-target commit."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -30,9 +30,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/dasops.git",
         "pinType": "commit",
-        "pinValue": "db26beb55510e24ecf1fb34e5e71fe0d09d47ecb",
+        "pinValue": "01f54872349812598190ecf0b28e0dcad2927914",
         "floating": false,
-        "notes": "Prepared public release commit; confirm remote reachability before publication."
+        "notes": "Final public v1.0.0 tag-target commit."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -49,9 +49,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/cadence-oss.git",
         "pinType": "commit",
-        "pinValue": "bef39eefdf908dcd58fa6c5499e63501b187fd49",
+        "pinValue": "e4054537c0962441037dd5403d1a1692434fde73",
         "floating": false,
-        "notes": "Prepared public release commit; confirm remote reachability before publication."
+        "notes": "Final public v1.0.0 tag-target commit."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -63,5 +63,5 @@
       ]
     }
   },
-  "notes": "Public OSS-only closure pinned to the prepared public commits. Confirm remote reachability before publication."
+  "notes": "Public OSS-only closure pinned to final public release commits."
 }
