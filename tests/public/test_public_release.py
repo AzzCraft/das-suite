@@ -19,7 +19,7 @@ PUBLIC_MODULES = {"das-standard", "dasops", "cadence-oss"}
 FINAL_PUBLIC_RELEASE_COMMITS = {
     "das-standard": "ac5a52fe9e8997392b3d21a488097e394d8e3102",
     "dasops": "01f54872349812598190ecf0b28e0dcad2927914",
-    "cadence-oss": "e4054537c0962441037dd5403d1a1692434fde73",
+    "cadence-oss": "b127f613ac617c87972f86bebb0927fcc6e28b91",
 }
 
 
