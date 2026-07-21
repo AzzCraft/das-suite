@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 - 2026-07-20
+
+- Advanced the Cadence OSS verification-runtime lock to the final public
+  v1.1.0 tag-target commit, including the expanded public Cadence bundle.
+- No DAS Suite API, schema, or supported-module changes from v1.0.1.
+
 ## 1.0.1 - 2026-07-20
 
 - Re-pinned the public OSS closure to the final public DASOps and Cadence

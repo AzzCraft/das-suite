@@ -6,7 +6,7 @@
     "kind": "custom",
     "uri": "public-component://das-suite",
     "pinType": "version",
-    "pinValue": "1.0.1",
+    "pinValue": "1.1.0",
     "floating": false,
     "notes": "The external release manifest binds the final public Git commit."
   },
@@ -14,9 +14,9 @@
     "kind": "git",
     "uri": "https://github.com/AzzCraft/cadence-oss.git",
     "pinType": "commit",
-    "pinValue": "e4054537c0962441037dd5403d1a1692434fde73",
+    "pinValue": "b127f613ac617c87972f86bebb0927fcc6e28b91",
     "floating": false,
-    "notes": "Final public v1.0.0 tag-target commit."
+    "notes": "Final public v1.1.0 tag-target commit."
   },
   "suiteVersionClosureRef": {
     "kind": "file",

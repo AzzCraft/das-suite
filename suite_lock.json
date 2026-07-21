@@ -2,7 +2,7 @@
   "$schema": "https://das-standard.dev/schemas/suite_lock.schema.json",
   "schemaVersion": "1.0.0",
   "suiteId": "das-suite",
-  "suiteVersion": "1.0.1",
+  "suiteVersion": "1.1.0",
   "standardManifestVersion": "1.4.0",
   "syncMode": "locked",
   "allowCloneTip": false,
@@ -49,9 +49,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/cadence-oss.git",
         "pinType": "commit",
-        "pinValue": "e4054537c0962441037dd5403d1a1692434fde73",
+        "pinValue": "b127f613ac617c87972f86bebb0927fcc6e28b91",
         "floating": false,
-        "notes": "Final public v1.0.0 tag-target commit."
+        "notes": "Final public v1.1.0 tag-target commit."
       },
       "required": true,
       "overridePolicy": "forbidden",
