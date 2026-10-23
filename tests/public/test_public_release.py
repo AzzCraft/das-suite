@@ -19,7 +19,7 @@ PUBLIC_MODULES = {"das-standard", "dasops", "cadence-oss"}
 SELECTED_PUBLIC_SOURCE_COMMITS = {
     "das-standard": "57304e33344ae8e3542aca35a38a3c0386834ff9",
     "dasops": "fa6a9e1f396d9aa828b8e4b9899e83d8fb0a1c57",
-    "cadence-oss": "af36ea768ba89432cc08d032e98a5faf35647fed",
+    "cadence-oss": "058fce48e015939fa884c60debef9be2315d91d1",
 }
 
 
