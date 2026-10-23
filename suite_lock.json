@@ -30,7 +30,7 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/dasops.git",
         "pinType": "commit",
-        "pinValue": "e5a54726ffeb30944317f22b7b01a222120656bf",
+        "pinValue": "e14baeb20981097f19f1571d9dad74efc03c18f5",
         "floating": false,
         "notes": "Exact public source candidate; no tag or joint qualification implied."
       },
