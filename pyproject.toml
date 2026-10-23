@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dassuite"
-version = "1.1.0"
+version = "1.2.0b1"
 description = "DAS Suite: exact locked closure manager for public DAS repositories"
 readme = "README.md"
 requires-python = ">=3.10"

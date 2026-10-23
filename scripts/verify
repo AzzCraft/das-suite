@@ -22,7 +22,7 @@ if [[ $# -gt 1 ]]; then
 fi
 
 SOURCE_ID="$(git -C "$ROOT" rev-parse --verify HEAD 2>/dev/null || printf '%s' archive)"
-printf '%s\n' "mode=$MODE suiteVersion=$(tr -d '[:space:]' < VERSION) standardManifestVersion=1.4.0 source=$SOURCE_ID python=$(python3 --version 2>&1)"
+printf '%s\n' "mode=$MODE suiteVersion=$(tr -d '[:space:]' < VERSION) standardManifestVersion=$(python3 -c 'import json;print(json.load(open("suite_lock.json"))["standardManifestVersion"])') source=$SOURCE_ID python=$(python3 --version 2>&1)"
 
 python3 - <<'PY'
 import ast
