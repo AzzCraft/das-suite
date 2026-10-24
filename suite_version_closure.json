@@ -6,7 +6,7 @@
   "suiteVersion": "1.2.0-beta.1",
   "factoryVersion": "1.2.0-beta.1",
   "verifyRuntimeVersion": "1.2.0-beta.1",
-  "closureUpdatedAt": "2026-10-24T09:50:52Z",
+  "closureUpdatedAt": "2026-10-24T09:54:14Z",
   "suiteLockRef": {
     "kind": "file",
     "uri": "suite_lock.json",
@@ -52,7 +52,7 @@
       "kind": "git",
       "uri": "https://github.com/AzzCraft/cadence-oss.git",
       "pinType": "commit",
-      "pinValue": "d310cbba4d28f4dad9343d4a76559d5e26c34522",
+      "pinValue": "5c7a258f015c3f592d5a31672bb2e087738c945d",
       "floating": false,
       "notes": "Exact public source candidate; no tag or joint qualification implied."
     }
