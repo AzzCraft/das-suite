@@ -30,9 +30,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/dasops.git",
         "pinType": "commit",
-        "pinValue": "a2123e2b239ec9da862580015efab4304074139d",
+        "pinValue": "938f58c39b97b469f832db8a9a3c61ce9f6a8dbc",
         "floating": false,
-        "notes": "Exact merged public source; no tag or joint qualification implied."
+        "notes": "Exact public-repository candidate commit; publish the component before this Suite combination. No tag or joint qualification implied."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -63,5 +63,5 @@
       ]
     }
   },
-  "notes": "Public OSS-only closure pinned to merged public source commits; release tags and assets are separate."
+  "notes": "Public OSS-only candidate closure; DASOps patch publication must precede this Suite combination. Release tags and assets are separate."
 }
