@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_MODULES = {"das-standard", "dasops", "cadence-oss"}
 SELECTED_PUBLIC_SOURCE_COMMITS = {
     "das-standard": "57304e33344ae8e3542aca35a38a3c0386834ff9",
-    "dasops": "fb896a7f3b00390f1b91b1e2f4c62ec93d9bd6d3",
+    "dasops": "15077ce16f16c2fe35761d2df94c449560b1c5b3",
     "cadence-oss": "5c7a258f015c3f592d5a31672bb2e087738c945d",
 }
 
