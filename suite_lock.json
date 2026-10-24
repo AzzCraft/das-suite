@@ -49,7 +49,7 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/cadence-oss.git",
         "pinType": "commit",
-        "pinValue": "058fce48e015939fa884c60debef9be2315d91d1",
+        "pinValue": "d310cbba4d28f4dad9343d4a76559d5e26c34522",
         "floating": false,
         "notes": "Exact public source candidate; no tag or joint qualification implied."
       },
