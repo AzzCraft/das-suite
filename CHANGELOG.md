@@ -19,3 +19,11 @@
   status/report commands, and standalone/workspace verification.
 - Supports Python 3.10+; the v1.0 public release intentionally excludes the
   prototype GUI, private tiers, and product-scaffolding commands.
+
+## 1.2.0-beta.1 (source candidate)
+
+- Support a fixed Standard 1.5 scaffold combination and validate real component
+  and Python/SemVer identities in the existing closure/report entry points.
+- Keep managed component clones separate from Suite source and move release
+  verification environments outside the source tree.
+- This candidate does not publish a tag or certify a product deployment.

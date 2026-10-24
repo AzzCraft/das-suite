@@ -2,8 +2,8 @@
   "$schema": "https://das-standard.dev/schemas/suite_lock.schema.json",
   "schemaVersion": "1.0.0",
   "suiteId": "das-suite",
-  "suiteVersion": "1.1.0",
-  "standardManifestVersion": "1.4.0",
+  "suiteVersion": "1.2.0-beta.1",
+  "standardManifestVersion": "1.5.0-beta.1",
   "syncMode": "locked",
   "allowCloneTip": false,
   "defaultOverridePolicy": "forbidden",
@@ -14,9 +14,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/das-standard.git",
         "pinType": "commit",
-        "pinValue": "ac5a52fe9e8997392b3d21a488097e394d8e3102",
+        "pinValue": "57304e33344ae8e3542aca35a38a3c0386834ff9",
         "floating": false,
-        "notes": "Final public v1.4.0 tag-target commit."
+        "notes": "Exact merged public source; no tag or joint qualification implied."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -30,9 +30,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/dasops.git",
         "pinType": "commit",
-        "pinValue": "01f54872349812598190ecf0b28e0dcad2927914",
+        "pinValue": "a2123e2b239ec9da862580015efab4304074139d",
         "floating": false,
-        "notes": "Final public v1.0.0 tag-target commit."
+        "notes": "Exact merged public source; no tag or joint qualification implied."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -49,9 +49,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/cadence-oss.git",
         "pinType": "commit",
-        "pinValue": "b127f613ac617c87972f86bebb0927fcc6e28b91",
+        "pinValue": "6cde6d02e771a7ce0d4ae705debec84826dd5582",
         "floating": false,
-        "notes": "Final public v1.1.0 tag-target commit."
+        "notes": "Exact merged public source; no tag or joint qualification implied."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -63,5 +63,5 @@
       ]
     }
   },
-  "notes": "Public OSS-only closure pinned to final public release commits."
+  "notes": "Public OSS-only closure pinned to merged public source commits; release tags and assets are separate."
 }

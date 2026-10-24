@@ -1,12 +1,12 @@
 {
   "$schema": "https://das-standard.dev/schemas/tooling_lock.schema.json",
   "schemaVersion": "1.0.0",
-  "standardManifestVersion": "1.4.0",
+  "standardManifestVersion": "1.5.0-beta.1",
   "sourceOfTruth": {
     "kind": "custom",
     "uri": "public-component://das-suite",
     "pinType": "version",
-    "pinValue": "1.1.0",
+    "pinValue": "1.2.0-beta.1",
     "floating": false,
     "notes": "The external release manifest binds the final public Git commit."
   },
@@ -14,9 +14,9 @@
     "kind": "git",
     "uri": "https://github.com/AzzCraft/cadence-oss.git",
     "pinType": "commit",
-    "pinValue": "b127f613ac617c87972f86bebb0927fcc6e28b91",
+    "pinValue": "6cde6d02e771a7ce0d4ae705debec84826dd5582",
     "floating": false,
-    "notes": "Final public v1.1.0 tag-target commit."
+    "notes": "Exact merged public source; no tag or joint qualification implied."
   },
   "suiteVersionClosureRef": {
     "kind": "file",

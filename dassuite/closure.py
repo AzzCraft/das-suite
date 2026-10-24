@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
+from referencing import Registry
 
 from .core import (
     Module,
@@ -51,7 +52,7 @@ CANONICAL_SCHEMA_FILES = {
 
 
 def _validate_canonical_schemas(suite_root: Path) -> list[str]:
-    """Validate all released closure inputs with the checked-in v1.4 schemas."""
+    """Validate all released closure inputs with the selected checked-in Standard schemas."""
     import yaml
 
     issues: list[str] = []
@@ -64,12 +65,49 @@ def _validate_canonical_schemas(suite_root: Path) -> list[str]:
         try:
             document = yaml.safe_load(document_path.read_text(encoding="utf-8"))
             schema = json.loads(schema_path.read_text(encoding="utf-8"))
-            errors = sorted(Draft202012Validator(schema).iter_errors(document), key=lambda item: list(item.path))
+            errors = sorted(Draft202012Validator(schema, registry=Registry()).iter_errors(document), key=lambda item: tuple(str(part) for part in item.path))
             for error in errors:
                 location = ".".join(str(item) for item in error.path) or "root"
                 issues.append(f"{document_name} canonical schema {location}: {error.message}")
         except (OSError, ValueError, yaml.YAMLError) as exc:
             issues.append(f"{document_name} canonical schema validation failed: {exc}")
+    return issues
+
+
+def _release_version(value):
+    import re
+    # Compare the same beta/rc/a release without dropping prerelease identity.
+    return re.sub(r"-(alpha|beta|rc)\.([0-9]+)$", lambda m: {"alpha":"a","beta":"b","rc":"rc"}[m[1]]+m[2], value)
+
+
+def validate_version_semantics(suite_root: Path, *, workspace: bool = False) -> list[str]:
+    import re
+    issues=[]
+    try:
+        version=(suite_root/"VERSION").read_text().strip()
+        package=re.search(r'^version\s*=\s*"([^"\n]+)"', (suite_root/"pyproject.toml").read_text(),re.M)
+        module=re.search(r'__version__\s*=\s*"([^"\n]+)"', (suite_root/"dassuite/__init__.py").read_text())
+        if not package or not module or any(_release_version(v)!=_release_version(version) for v in (package[1],module[1])):
+            issues.append("Suite VERSION, Python package and __version__ differ")
+        closure=load_suite_version_closure(suite_root);tooling=load_tooling_lock(suite_root)
+        if closure["refs"]["suite"]["pinValue"]!=version or tooling["sourceOfTruth"]["pinValue"]!=version:
+            issues.append("Suite self references differ from VERSION")
+        if workspace:
+            manifest=load_manifest(suite_root)
+            for module in parse_modules(manifest):
+                path=_observed_module_path(suite_root,module,load_suite_lock(suite_root)["modules"].get(module.id))
+                if not path.is_dir():
+                    issues.append("missing module source: "+module.id);continue
+                actual=(path/"VERSION").read_text().strip()
+                key={"das-standard":"standardVersion","dasops":"factoryVersion","cadence-oss":"verifyRuntimeVersion"}[module.id]
+                if _release_version(actual)!=_release_version(closure[key]):issues.append(module.id+" VERSION differs from closure")
+                if module.id=="das-standard":
+                    standard=json.loads((path/"standard_manifest.json").read_text())
+                    if standard["standardVersion"]!=closure["standardManifestVersion"]:issues.append("Standard manifest edition differs")
+                    for name in ("suite_lock","suite_version_closure","tooling_lock"):
+                        if (path/(name+".schema.json")).read_bytes()!=(suite_root/"schemas/das-standard"/(name+".schema.json")).read_bytes():
+                            issues.append("Standard schema source differs: "+name)
+    except (OSError,ValueError,KeyError,TypeError) as exc:issues.append("version semantics: "+str(exc))
     return issues
 
 
@@ -222,6 +260,7 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
     suite_root = suite_root.resolve()
 
     issues.extend(_validate_canonical_schemas(suite_root))
+    issues.extend(validate_version_semantics(suite_root))
 
     manifest = load_manifest(suite_root)
     modules = parse_modules(manifest)

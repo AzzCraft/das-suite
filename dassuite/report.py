@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .closure import build_status_payload, validate_closure_artifacts
+from .closure import build_status_payload, validate_closure_artifacts, validate_version_semantics
 from .core import read_suite_version
 
 
@@ -13,6 +13,7 @@ def generate_report(suite_root: Path, *, enforce_workspace: bool = False) -> dic
     modules = build_status_payload(suite_root)
     issues = validate_closure_artifacts(suite_root)
     if enforce_workspace:
+        issues.extend(validate_version_semantics(suite_root, workspace=True))
         lock_modules = json.loads((suite_root / "suite_lock.json").read_text(encoding="utf-8"))["modules"]
         for module in modules:
             allowed = set(lock_modules.get(module["id"], {}).get("allowedLocalState", []))

@@ -66,3 +66,6 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Managed component clones are observed against suite_lock, not Suite source.
+src/

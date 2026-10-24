@@ -16,10 +16,10 @@ from dassuite.core import Module, module_path
 
 ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_MODULES = {"das-standard", "dasops", "cadence-oss"}
-FINAL_PUBLIC_RELEASE_COMMITS = {
-    "das-standard": "ac5a52fe9e8997392b3d21a488097e394d8e3102",
-    "dasops": "01f54872349812598190ecf0b28e0dcad2927914",
-    "cadence-oss": "b127f613ac617c87972f86bebb0927fcc6e28b91",
+SELECTED_PUBLIC_SOURCE_COMMITS = {
+    "das-standard": "57304e33344ae8e3542aca35a38a3c0386834ff9",
+    "dasops": "a2123e2b239ec9da862580015efab4304074139d",
+    "cadence-oss": "6cde6d02e771a7ce0d4ae705debec84826dd5582",
 }
 
 
@@ -53,14 +53,14 @@ class PublicReleaseTests(unittest.TestCase):
             self.assertEqual(ref["uri"], f"https://github.com/AzzCraft/{module}.git")
             self.assertFalse(ref["floating"])
 
-    def test_lock_pins_final_public_release_commits(self) -> None:
+    def test_lock_pins_selected_public_source_commits(self) -> None:
         lock = json.loads((ROOT / "suite_lock.json").read_text(encoding="utf-8"))
         self.assertEqual(
             {
                 module: item["lockedRef"]["pinValue"]
                 for module, item in lock["modules"].items()
             },
-            FINAL_PUBLIC_RELEASE_COMMITS,
+            SELECTED_PUBLIC_SOURCE_COMMITS,
         )
 
     def test_three_lock_views_agree(self) -> None:
@@ -75,11 +75,11 @@ class PublicReleaseTests(unittest.TestCase):
     def test_closure_validator_passes(self) -> None:
         self.assertEqual(validate_closure_artifacts(ROOT), [])
 
-    def test_local_canonical_schemas_match_das_standard_v1_4_0(self) -> None:
+    def test_local_canonical_schemas_match_selected_standard(self) -> None:
         expected = {
-            "suite_lock.schema.json": "64532328f53009b64ec71a9461b7da3c4ed8648a6b9d958446c245684e9953d8",
-            "suite_version_closure.schema.json": "330210438d4fbc0e879d528526c6a7efb4c638ba7f70419efcaf58fd9086e8e8",
-            "tooling_lock.schema.json": "3ab5e0a50c5e6dd355b3d882eab2a2258b1daf170eb8c9d9541b6cf2ee380cf5",
+            "suite_lock.schema.json": "7a8b8ba8b9b8b0c47c53f708f272dbf7bee73a6d80b080945ee4989062c99285",
+            "suite_version_closure.schema.json": "160dc5cd80b4a9c8ceac8f5584054aadf04b4219a75c7eaecc47219bf2985d90",
+            "tooling_lock.schema.json": "8352c45a4f0dc994ec9a83a197bfcac9da377e323832606bdf12540e4caf3f0f",
         }
         for name, digest in expected.items():
             payload = (ROOT / "schemas" / "das-standard" / name).read_bytes()
@@ -103,7 +103,9 @@ class PublicReleaseTests(unittest.TestCase):
         ]
         paths = public_files if (ROOT / "dassuite" / "rollback.py").exists() else ROOT.rglob("*")
         for path in paths:
-            if path.is_file() and ".git" not in path.parts:
+            # Workspace modules own their content policies and are not shipped
+            # inside the Suite source archive.
+            if path.relative_to(ROOT).parts[0] != "src" and path.is_file() and ".git" not in path.parts:
                 text = path.read_text(encoding="utf-8", errors="ignore").lower()
                 for value in forbidden:
                     self.assertNotIn(value, text, str(path.relative_to(ROOT)))
@@ -135,6 +137,24 @@ class PublicReleaseTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("--repo-root", result.stdout)
         self.assertNotIn("--git-base", result.stdout)
+
+
+class VersionSemanticsTests(unittest.TestCase):
+    def test_pep440_does_not_erase_beta_identity(self):
+        from dassuite.closure import _release_version
+        self.assertEqual(_release_version("1.2.0-beta.1"),"1.2.0b1")
+        self.assertNotEqual(_release_version("1.2.0-beta.1"),_release_version("1.2.0-beta.2"))
+        self.assertNotEqual(_release_version("1.2.0-beta.1"),"1.2.0")
+
+    def test_suite_self_version_drift_rejects(self):
+        import shutil
+        from dassuite.closure import validate_version_semantics
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            for name in ("VERSION","pyproject.toml","dassuite/__init__.py","suite_version_closure.json","suite.tooling_lock.json"):
+                path=root/name;path.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(ROOT/name,path)
+            (root/"dassuite/__init__.py").write_text('__version__ = "1.2.0b2"\n')
+            self.assertTrue(validate_version_semantics(root))
 
 
 if __name__ == "__main__":

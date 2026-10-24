@@ -88,8 +88,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m venv .venv
-          . .venv/bin/activate
+          python3 -m venv "$RUNNER_TEMP/das-suite-verify-venv"
+          . "$RUNNER_TEMP/das-suite-verify-venv/bin/activate"
           python -m pip install --upgrade pip
           python -m pip install -r requirements-verify.txt
           python -m pip install -e .
@@ -97,13 +97,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          . .venv/bin/activate
+          . "$RUNNER_TEMP/das-suite-verify-venv/bin/activate"
           bash ./scripts/verify --standalone
       - name: Audit Python dependencies and source
         shell: bash
         run: |
           set -euo pipefail
-          . .venv/bin/activate
+          . "$RUNNER_TEMP/das-suite-verify-venv/bin/activate"
           pip-audit --progress-spinner off --strict -r requirements-verify.txt
           bandit -q -lll -r dassuite
       - name: Build deterministic release evidence
