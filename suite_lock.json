@@ -16,7 +16,7 @@
         "pinType": "commit",
         "pinValue": "57304e33344ae8e3542aca35a38a3c0386834ff9",
         "floating": false,
-        "notes": "Exact public source candidate; no tag or joint qualification implied."
+        "notes": "Exact merged public source; no tag or joint qualification implied."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -30,9 +30,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/dasops.git",
         "pinType": "commit",
-        "pinValue": "87e36adc8b324002a6b9e42b769a5abeaa6f31b9",
+        "pinValue": "a2123e2b239ec9da862580015efab4304074139d",
         "floating": false,
-        "notes": "Exact public source candidate; no tag or joint qualification implied."
+        "notes": "Exact merged public source; no tag or joint qualification implied."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -49,9 +49,9 @@
         "kind": "git",
         "uri": "https://github.com/AzzCraft/cadence-oss.git",
         "pinType": "commit",
-        "pinValue": "5c7a258f015c3f592d5a31672bb2e087738c945d",
+        "pinValue": "6cde6d02e771a7ce0d4ae705debec84826dd5582",
         "floating": false,
-        "notes": "Exact public source candidate; no tag or joint qualification implied."
+        "notes": "Exact merged public source; no tag or joint qualification implied."
       },
       "required": true,
       "overridePolicy": "forbidden",
@@ -63,5 +63,5 @@
       ]
     }
   },
-  "notes": "Public OSS-only closure pinned to final public release commits."
+  "notes": "Public OSS-only closure pinned to merged public source commits; release tags and assets are separate."
 }
