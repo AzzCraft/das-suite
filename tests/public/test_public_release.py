@@ -103,7 +103,9 @@ class PublicReleaseTests(unittest.TestCase):
         ]
         paths = public_files if (ROOT / "dassuite" / "rollback.py").exists() else ROOT.rglob("*")
         for path in paths:
-            if path.is_file() and ".git" not in path.parts:
+            # Workspace modules own their content policies and are not shipped
+            # inside the Suite source archive.
+            if path.relative_to(ROOT).parts[0] != "src" and path.is_file() and ".git" not in path.parts:
                 text = path.read_text(encoding="utf-8", errors="ignore").lower()
                 for value in forbidden:
                     self.assertNotIn(value, text, str(path.relative_to(ROOT)))

@@ -74,7 +74,8 @@ public_files = [
 ]
 paths = public_files if (root / "dassuite" / "rollback.py").exists() else root.rglob("*")
 for path in paths:
-    if not path.is_file() or ".git" in path.parts or path.suffix.lower() not in allowed_suffixes:
+    # Synced modules are separate repositories, not Suite release content.
+    if path.relative_to(root).parts[0] == "src" or not path.is_file() or ".git" in path.parts or path.suffix.lower() not in allowed_suffixes:
         continue
     text = path.read_text(encoding="utf-8", errors="replace").lower()
     for value in forbidden:
@@ -97,7 +98,7 @@ if [[ "$WORKSPACE" -eq 1 ]]; then
   python3 -m dassuite report --workspace --repo-root "$ROOT" --json >/dev/null
 fi
 
-if find "$ROOT" -path "$ROOT/.git" -prune -o -type d \( -name '__pycache__' -o -name '.pytest_cache' \) -print | grep -q .; then
+if find "$ROOT" \( -path "$ROOT/.git" -o -path "$ROOT/src" \) -prune -o -type d \( -name '__pycache__' -o -name '.pytest_cache' \) -print | grep -q .; then
   echo "forbidden generated cache directory found" >&2
   exit 1
 fi
