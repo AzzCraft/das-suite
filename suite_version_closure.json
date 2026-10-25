@@ -6,7 +6,7 @@
   "suiteVersion": "1.2.0-beta.1",
   "factoryVersion": "1.2.0-beta.1",
   "verifyRuntimeVersion": "1.2.0-beta.1",
-  "closureUpdatedAt": "2026-10-25T04:03:06Z",
+  "closureUpdatedAt": "2026-10-25T09:16:25Z",
   "suiteLockRef": {
     "kind": "file",
     "uri": "suite_lock.json",
@@ -44,7 +44,7 @@
       "kind": "git",
       "uri": "https://github.com/AzzCraft/dasops.git",
       "pinType": "commit",
-      "pinValue": "217bf9f972ad6f5c0bd4c610b4ea7cac9e51987c",
+      "pinValue": "d18bce91443e050472f613ebcb1e3b96e5f89d93",
       "floating": false,
       "notes": "Exact public-repository candidate commit; publish the component before this Suite combination. No tag or joint qualification implied."
     },
