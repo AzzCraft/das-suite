@@ -130,6 +130,40 @@ class PublicReleaseTests(unittest.TestCase):
             self.assertEqual(len(report["modules"]), 3)
             self.assertTrue(all(item["state"] == "missing" for item in report["modules"]))
 
+    def test_duplicate_module_ids_stop_closure_and_sync(self) -> None:
+        from unittest.mock import patch
+        from dassuite.closure import CANONICAL_SCHEMA_FILES
+        from dassuite.report import generate_report
+        from dassuite.sync import sync_modules
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in (*CANONICAL_SCHEMA_FILES, *CANONICAL_SCHEMA_FILES.values(),
+                         "VERSION", "pyproject.toml", "dassuite/__init__.py"):
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / name, target)
+            manifest = root / "modules.yaml"
+            original = manifest.read_bytes()
+            data = yaml.safe_load(original)
+            data["modules"].append({**data["modules"][0], "path": "src/duplicate-standard"})
+            manifest.write_text(yaml.safe_dump(data))
+            issues = validate_closure_artifacts(root)
+            self.assertTrue(any("duplicate module ID" in issue for issue in issues), issues)
+            with patch("dassuite.report.build_status_payload", side_effect=AssertionError("ambiguous modules observed")):
+                self.assertTrue(generate_report(root, enforce_workspace=True)["issues"])
+            with patch("dassuite.sync._sync_locked_module", side_effect=AssertionError("ambiguous sync attempted")):
+                ok, results, issues = sync_modules(suite_root=root, tier="oss")
+                self.assertFalse(ok)
+                self.assertEqual(results, [])
+                self.assertTrue(issues)
+            for command in (("closure", "check"), ("report", "--workspace"), ("sync",)):
+                proc = self.run_cli(*command, "--repo-root", str(root), "--json")
+                self.assertEqual(proc.returncode, 2, proc.stdout)
+                self.assertTrue(json.loads(proc.stdout)["issues"])
+            self.assertFalse((root / "src").exists())
+            manifest.write_bytes(original)
+            self.assertEqual(validate_closure_artifacts(root), [])
+
     def test_local_canonical_schemas_match_selected_standard(self) -> None:
         expected = {
             "suite_lock.schema.json": "7a8b8ba8b9b8b0c47c53f708f272dbf7bee73a6d80b080945ee4989062c99285",

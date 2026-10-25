@@ -268,6 +268,8 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
     manifest = load_manifest(suite_root)
     modules = parse_modules(manifest)
     modules_by_id = {module.id: module for module in modules}
+    if len(modules_by_id) != len(modules):
+        return ["modules.yaml contains duplicate module IDs"]
     suite_version = read_suite_version(suite_root)
 
     if "das-standard" not in modules_by_id:
@@ -660,8 +662,7 @@ def build_status_payload(suite_root: Path) -> list[dict[str, Any]]:
         local_locked_path = resolve_structured_ref_path(suite_root, locked_ref)
         if (
             local_locked_path is None
-            and item["currentRemote"]
-            and normalize_git_uri(item["currentRemote"]) != normalize_git_uri(str(locked_ref.get("uri", "")))
+            and normalize_git_uri(item["currentRemote"] or "") != normalize_git_uri(str(locked_ref.get("uri", "")))
         ):
             item["state"] = "present_local_override"
             payload.append(item)
