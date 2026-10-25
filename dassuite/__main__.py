@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .closure import build_status_payload, validate_closure_artifacts
+from .closure import _validate_canonical_schemas, build_status_payload, validate_closure_artifacts
 from .core import effective_git_base, load_manifest, suite_root_from
 from .report import generate_report, render_report_text
 from .sync import sync_modules
@@ -46,6 +46,18 @@ def main(argv=None) -> int:
 
     args = parser.parse_args(argv)
     root = suite_root_from(Path(args.repo_root))
+
+    # These commands otherwise read the catalog before the closure/report gate.
+    if args.cmd in ("status", "sync"):
+        issues = _validate_canonical_schemas(root)
+        if issues:
+            payload = {"issues": issues}
+            if args.cmd == "status":
+                payload["modules"] = []
+            else:
+                payload.update(locked=True, gitBase=None, results=[])
+            print(json.dumps(payload, indent=2) if args.json else "\n".join("- " + issue for issue in issues))
+            return 2
 
     if args.cmd == "status":
         payload = build_status_payload(root)

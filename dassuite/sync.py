@@ -334,9 +334,6 @@ def sync_modules(
     lock_path: Path | None = None,
     offline: bool = False,
 ) -> tuple[bool, list[dict[str, Any]], list[str]]:
-    manifest = load_manifest(suite_root)
-    modules = [module for module in parse_modules(manifest) if should_include(module, tier)]
-
     issues: list[str] = []
     lock_modules: dict[str, Any] = {}
     if closure_mode or lock_path is not None:
@@ -365,6 +362,8 @@ def sync_modules(
             return False, [], issues
         lock_modules = lock_data.get("modules", {})
 
+    manifest = load_manifest(suite_root)
+    modules = [module for module in parse_modules(manifest) if should_include(module, tier)]
     results: list[dict[str, Any]] = []
     ok_required = True
     effective_base = effective_git_base(manifest, git_base)

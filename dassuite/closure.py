@@ -63,7 +63,8 @@ def _validate_canonical_schemas(suite_root: Path) -> list[str]:
             issues.append(f"missing canonical schema: {schema_name}")
             continue
         try:
-            document = yaml.safe_load(document_path.read_text(encoding="utf-8"))
+            text = document_path.read_text(encoding="utf-8")
+            document = json.loads(text) if document_path.suffix == ".json" else yaml.safe_load(text)
             schema = json.loads(schema_path.read_text(encoding="utf-8"))
             errors = sorted(Draft202012Validator(schema, registry=Registry()).iter_errors(document), key=lambda item: tuple(str(part) for part in item.path))
             for error in errors:
@@ -260,6 +261,8 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
     suite_root = suite_root.resolve()
 
     issues.extend(_validate_canonical_schemas(suite_root))
+    if issues:
+        return issues
     issues.extend(validate_version_semantics(suite_root))
 
     manifest = load_manifest(suite_root)

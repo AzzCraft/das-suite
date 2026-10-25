@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -74,6 +75,60 @@ class PublicReleaseTests(unittest.TestCase):
 
     def test_closure_validator_passes(self) -> None:
         self.assertEqual(validate_closure_artifacts(ROOT), [])
+
+    def test_invalid_inputs_stop_before_semantics_or_sync(self) -> None:
+        from unittest.mock import patch
+        from dassuite.closure import CANONICAL_SCHEMA_FILES
+        from dassuite.report import generate_report
+        from dassuite.sync import sync_modules
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in (*CANONICAL_SCHEMA_FILES, *CANONICAL_SCHEMA_FILES.values(),
+                         "VERSION", "pyproject.toml", "dassuite/__init__.py"):
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / name, target)
+            originals = {name: (root / name).read_bytes() for name in CANONICAL_SCHEMA_FILES}
+            cases = [(name, b"[]\n") for name in CANONICAL_SCHEMA_FILES]
+            cases += [
+                ("suite_lock.json", b"{"),
+                ("suite_version_closure.json", yaml.safe_dump(json.loads(originals["suite_version_closure.json"])).encode()),
+                ("suite.tooling_lock.json", None),
+                ("modules.yaml", b"modules: [\n"),
+            ]
+            for name, invalid in cases:
+                with self.subTest(input=name, invalid=invalid):
+                    try:
+                        if invalid is None:
+                            (root / name).unlink()
+                        else:
+                            (root / name).write_bytes(invalid)
+                        issues = validate_closure_artifacts(root)
+                        self.assertTrue(issues)
+                        self.assertTrue(any(name in issue for issue in issues), issues)
+                        with patch("dassuite.report.build_status_payload", side_effect=AssertionError("invalid inputs consumed")):
+                            for workspace in (False, True):
+                                report = generate_report(root, enforce_workspace=workspace)
+                                self.assertTrue(report["issues"])
+                                self.assertEqual(report["modules"], [])
+                        with patch("dassuite.sync._sync_locked_module", side_effect=AssertionError("sync attempted")):
+                            ok, results, issues = sync_modules(suite_root=root, tier="oss")
+                            self.assertFalse(ok)
+                            self.assertEqual(results, [])
+                            self.assertTrue(issues)
+                        for command in (("closure", "check"), ("report",), ("report", "--workspace"), ("status",), ("sync",)):
+                            proc = self.run_cli(*command, "--repo-root", str(root), "--json")
+                            self.assertEqual(proc.returncode, 2, proc.stdout)
+                            payload = json.loads(proc.stdout)
+                            self.assertTrue(any(name in issue for issue in payload["issues"]), payload)
+                        self.assertFalse((root / "src").exists())
+                    finally:
+                        (root / name).write_bytes(originals[name])
+            self.assertEqual(validate_closure_artifacts(root), [])
+            report = generate_report(root)
+            self.assertEqual(report["issues"], [])
+            self.assertEqual(len(report["modules"]), 3)
+            self.assertTrue(all(item["state"] == "missing" for item in report["modules"]))
 
     def test_local_canonical_schemas_match_selected_standard(self) -> None:
         expected = {

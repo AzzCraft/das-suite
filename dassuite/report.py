@@ -10,9 +10,9 @@ from .core import read_suite_version
 
 
 def generate_report(suite_root: Path, *, enforce_workspace: bool = False) -> dict[str, Any]:
-    modules = build_status_payload(suite_root)
     issues = validate_closure_artifacts(suite_root)
-    if enforce_workspace:
+    modules = build_status_payload(suite_root) if not issues else []
+    if enforce_workspace and not issues:
         issues.extend(validate_version_semantics(suite_root, workspace=True))
         lock_modules = json.loads((suite_root / "suite_lock.json").read_text(encoding="utf-8"))["modules"]
         for module in modules:
