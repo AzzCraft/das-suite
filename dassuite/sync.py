@@ -4,10 +4,16 @@ import json
 import os
 import re
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
-from .closure import build_status_payload, validate_closure_artifacts
+from .closure import (
+    _validate_canonical_schemas,
+    build_status_payload,
+    validate_closure_artifacts,
+    validate_sync_lock,
+)
 from .core import (
     Module,
     effective_git_base,
@@ -61,6 +67,8 @@ def _validate_lock_for_closure_mode(
     offline: bool,
 ) -> list[str]:
     if closure_mode is None:
+        if any(is_offline_fixture_git_ref(ref) for ref in _iter_refs(lock_data)):
+            return ["fixture sources require explicit fixture mode, offline, and a fixture lock"]
         if offline:
             return ["--offline requires --closure-mode fixture"]
         return []
@@ -71,6 +79,8 @@ def _validate_lock_for_closure_mode(
     if closure_mode == "production" and offline:
         issues.append("production closure-mode cannot run with --offline")
     if closure_mode == "fixture":
+        if not offline:
+            issues.append("fixture closure-mode requires offline")
         if lock_path is None:
             issues.append("fixture closure-mode requires --lock under tests/fixtures/closure")
         else:
@@ -156,7 +166,7 @@ def _materialize_offline_fixture_repo(
             ),
         )
 
-    rc, out = run(["git", "checkout", "--detach", pin_value], cwd=dest)
+    rc, out = run(["git", "checkout", "--no-overwrite-ignore", "--detach", pin_value], cwd=dest)
     if rc != 0:
         return False, out or "offline fixture detach checkout failed"
     return True, "materialized deterministic offline fixture repository"
@@ -190,7 +200,7 @@ def sync_one_module(
 
 def _checkout_locked_ref(repo_path: Path, locked_ref: dict[str, Any]) -> tuple[int, str]:
     pin_value = _exact_commit(locked_ref.get("pinValue", ""))
-    return run(["git", "checkout", "--detach", pin_value], cwd=repo_path)
+    return run(["git", "checkout", "--no-overwrite-ignore", "--detach", pin_value], cwd=repo_path)
 
 
 def _sync_locked_module(
@@ -202,33 +212,25 @@ def _sync_locked_module(
     closure_mode: str | None = None,
     offline: bool = False,
 ) -> tuple[bool, str]:
+    if locked_ref.get("kind") != "git" or locked_ref.get("pinType") != "commit":
+        return False, "locked module requires git/commit with a full commit id"
+    try:
+        _exact_commit(locked_ref.get("pinValue", ""))
+    except ValueError as exc:
+        return False, str(exc)
+    if is_offline_fixture_git_ref(locked_ref) and not (closure_mode == "fixture" and offline):
+        return False, "fixture sources require explicit fixture mode and offline"
     dest = module_path(suite_root, module)
-    state_map = {item["id"]: item for item in build_status_payload(suite_root)}
-    state = state_map[module.id]["state"]
+    # Observe the reference actually selected by this sync, including an
+    # explicit alternate/fixture lock. Never borrow the canonical lock's match.
+    selected = {module.id: {"lockedRef": locked_ref}}
+    states = {item["id"]: item for item in build_status_payload(suite_root, lock_modules=selected)}
+    observed = states[module.id]
+    state = observed["state"]
     local_path = resolve_structured_ref_path(suite_root, locked_ref)
-    actual_path = Path(state_map[module.id].get("resolvedPath", dest))
-
-    if local_path is not None:
-        if state == "present_locked_match":
-            return True, "already present at locked ref"
-        if state == "missing":
-            return False, f"local managed module not found at {local_path}"
-        if state == "dirty":
-            if allow_dirty:
-                return True, "dirty but allowed by --allow-dirty-module"
-            return False, "module is dirty; clean it before locked sync"
-        if state == "present_local_override":
-            return False, "module is a local override; locked sync will not rewrite it"
-        if locked_ref.get("kind") == "custom":
-            return False, "local managed module does not match locked version"
-        rc, out = _checkout_locked_ref(actual_path, locked_ref)
-        if rc != 0:
-            return False, out or "checkout failed"
-        refreshed = {item["id"]: item for item in build_status_payload(suite_root)}
-        if refreshed[module.id]["state"] == "present_locked_match":
-            return True, "locked ref applied"
-        return False, f"locked sync left {module.id} in {refreshed[module.id]['state']}"
-
+    actual_path = Path(observed.get("resolvedPath", dest))
+    if state == "observation_error":
+        return False, observed["error"]
     if state == "present_locked_match":
         return True, "already present at locked ref"
     if state == "dirty":
@@ -237,85 +239,46 @@ def _sync_locked_module(
         return False, "module is dirty; clean it before locked sync"
     if state == "present_local_override":
         return False, "module is a local override; locked sync will not rewrite it"
+    if local_path is not None and state == "missing":
+        return False, f"local managed module not found at {local_path}"
 
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if is_offline_fixture_git_ref(locked_ref) and not dest.exists():
-        ok, message = _materialize_offline_fixture_repo(
-            dest=dest,
-            module=module,
-            locked_ref=locked_ref,
-        )
-        if not ok:
-            return False, message
-        if closure_mode == "fixture" and offline:
-            return True, message
-        refreshed = {item["id"]: item for item in build_status_payload(suite_root)}
-        if refreshed[module.id]["state"] == "present_locked_match":
-            return True, message
-        return False, f"offline fixture left {module.id} in {refreshed[module.id]['state']}"
+    if state == "missing":
+        # Only an absent or empty catalog destination is ours to publish into.
+        if dest.is_symlink() or (dest.exists() and (not dest.is_dir() or any(dest.iterdir()))):
+            return False, "destination is not an absent or empty directory"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix=".dassuite-sync-", dir=dest.parent) as tmp:
+            staging = Path(tmp) / "checkout"
+            if closure_mode == "fixture" and offline and is_offline_fixture_git_ref(locked_ref):
+                ok, message = _materialize_offline_fixture_repo(dest=staging, module=module, locked_ref=locked_ref)
+                if not ok:
+                    return False, message
+            else:
+                rc, out = run(["git", "clone", "--no-checkout", "--", str(locked_ref["uri"]), str(staging)], cwd=suite_root)
+                if rc != 0:
+                    return False, out or "clone failed"
+                rc, out = _checkout_locked_ref(staging, locked_ref)
+                if rc != 0:
+                    return False, out or "checkout failed"
+            if run(["git", "rev-parse", "HEAD"], cwd=staging) != (0, str(locked_ref["pinValue"])):
+                return False, "staged source does not match locked commit"
+            # rename replaces only an empty directory, never an existing tree.
+            try:
+                staging.rename(dest)
+            except OSError as exc:
+                return False, f"cannot publish locked checkout: {exc}"
+        return True, "locked source cloned"
 
-    if not dest.exists():
-        pin_value = _exact_commit(locked_ref.get("pinValue", ""))
-        rc, out = run(["git", "clone", "--", str(locked_ref["uri"]), str(dest)], cwd=suite_root)
+    # Existing repositories are never removed or reset on failure. Git's checkout
+    # conflict checks retain tracked, untracked and ignored user files.
+    if local_path is None:
+        rc, out = run(["git", "fetch", "--tags", "origin"], cwd=actual_path)
         if rc != 0:
-            if is_offline_fixture_git_ref(locked_ref):
-                ok, message = _materialize_offline_fixture_repo(
-                    dest=dest,
-                    module=module,
-                    locked_ref=locked_ref,
-                )
-                if not ok:
-                    return False, (out or "clone failed") + "\n" + message
-                if closure_mode == "fixture" and offline:
-                    return True, message
-                refreshed = {item["id"]: item for item in build_status_payload(suite_root)}
-                if refreshed[module.id]["state"] == "present_locked_match":
-                    return True, message
-                return False, f"offline fixture left {module.id} in {refreshed[module.id]['state']}"
-            return False, out or "clone failed"
-    else:
-        if not is_git_repo(dest):
-            return False, "existing path is not a git repository"
-        current_remote = run(["git", "remote", "get-url", "origin"], cwd=dest)[1].strip()
-        if current_remote and normalize_git_uri(current_remote) != normalize_git_uri(
-            str(locked_ref["uri"])
-        ):
-            return False, "existing repo remote differs from locked ref"
-        rc, out = run(["git", "fetch", "--tags", "origin"], cwd=dest)
-        if rc != 0:
-            if is_offline_fixture_git_ref(locked_ref):
-                ok, message = _materialize_offline_fixture_repo(
-                    dest=dest,
-                    module=module,
-                    locked_ref=locked_ref,
-                )
-                if not ok:
-                    return False, (out or "fetch failed") + "\n" + message
-                if closure_mode == "fixture" and offline:
-                    return True, message
-                refreshed = {item["id"]: item for item in build_status_payload(suite_root)}
-                if refreshed[module.id]["state"] == "present_locked_match":
-                    return True, message
-                return False, f"offline fixture left {module.id} in {refreshed[module.id]['state']}"
             return False, out or "fetch failed"
-
-    rc, out = _checkout_locked_ref(dest, locked_ref)
+    rc, out = _checkout_locked_ref(actual_path, locked_ref)
     if rc != 0:
-        if is_offline_fixture_git_ref(locked_ref):
-            ok, message = _materialize_offline_fixture_repo(
-                dest=dest,
-                module=module,
-                locked_ref=locked_ref,
-            )
-            if not ok:
-                return False, (out or "checkout failed") + "\n" + message
-            refreshed = {item["id"]: item for item in build_status_payload(suite_root)}
-            if refreshed[module.id]["state"] == "present_locked_match":
-                return True, message
-            return False, f"offline fixture left {module.id} in {refreshed[module.id]['state']}"
         return False, out or "checkout failed"
-
-    refreshed = {item["id"]: item for item in build_status_payload(suite_root)}
+    refreshed = {item["id"]: item for item in build_status_payload(suite_root, lock_modules=selected)}
     if refreshed[module.id]["state"] == "present_locked_match":
         return True, "locked ref applied"
     return False, f"locked sync left {module.id} in {refreshed[module.id]['state']}"
@@ -339,15 +302,25 @@ def sync_modules(
     if closure_mode or lock_path is not None:
         locked = True
     if locked:
+        # Selecting another lock changes the source pins, not the workspace's
+        # catalog/profile contract or the requirement to validate before writes.
+        issues = validate_closure_artifacts(suite_root)
+        if issues:
+            return False, [], issues
         lock_data: dict[str, Any]
         resolved_lock_path: Path | None = None
         if lock_path is not None:
             resolved_lock_path = lock_path if lock_path.is_absolute() else suite_root / lock_path
-            lock_data = _load_lock_file(resolved_lock_path)
-        else:
-            issues = validate_closure_artifacts(suite_root)
+            issues = _validate_canonical_schemas(
+                suite_root, document_paths={"suite_lock.json": resolved_lock_path},
+            )
             if issues:
-                return False, [], issues
+                return False, [], [f"{resolved_lock_path.name}: {issue}" for issue in issues]
+            lock_data = _load_lock_file(resolved_lock_path)
+            issues = validate_sync_lock(suite_root, lock_data, parse_modules(load_manifest(suite_root)))
+            if issues:
+                return False, [], [f"{resolved_lock_path.name}: {issue}" for issue in issues]
+        else:
             lock_data = load_suite_lock(suite_root)
         issues.extend(
             _validate_lock_for_closure_mode(
@@ -368,7 +341,13 @@ def sync_modules(
     ok_required = True
     effective_base = effective_git_base(manifest, git_base)
 
+    blocked_by = None
     for module in modules:
+        if blocked_by:
+            results.append({"id": module.id, "path": module.path, "tier": module.tier,
+                            "required": module.required, "ok": False, "action": "not_attempted",
+                            "message": f"blocked by failed required module {blocked_by}"})
+            continue
         if locked:
             entry = lock_modules.get(module.id)
             if not entry:
@@ -385,6 +364,7 @@ def sync_modules(
                 )
                 if module.required:
                     ok_required = False
+                    blocked_by = module.id
                 continue
             ok, message = _sync_locked_module(
                 suite_root=suite_root,
@@ -407,6 +387,7 @@ def sync_modules(
 
         if module.required and not ok:
             ok_required = False
+            blocked_by = module.id
 
         results.append(
             {
