@@ -49,7 +49,7 @@ def main(argv=None) -> int:
 
     # These commands otherwise read the catalog before the closure/report gate.
     if args.cmd in ("status", "sync"):
-        issues = _validate_canonical_schemas(root)
+        issues = validate_closure_artifacts(root)
         if issues:
             payload = {"issues": issues}
             if args.cmd == "status":
@@ -61,8 +61,9 @@ def main(argv=None) -> int:
 
     if args.cmd == "status":
         payload = build_status_payload(root)
+        errors = [item["error"] for item in payload if item.get("error")]
         if args.json:
-            print(json.dumps({"modules": payload}, indent=2))
+            print(json.dumps({"modules": payload, "issues": errors}, indent=2))
         else:
             rows = [["Module", "Required", "State", "Path"]]
             for item in payload:
@@ -73,7 +74,7 @@ def main(argv=None) -> int:
                     item.get("resolvedPath") or item["path"],
                 ])
             _print_table(rows)
-        return 0
+        return 2 if errors else 0
 
     if args.cmd == "closure" and args.closure_cmd == "check":
         issues = validate_closure_artifacts(root)

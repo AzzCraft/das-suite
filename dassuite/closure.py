@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry
 
 from .core import (
@@ -17,6 +18,7 @@ from .core import (
     normalize_git_uri,
     parse_modules,
     read_suite_version,
+    run,
 )
 from .locks import (
     LOCAL_STATES,
@@ -29,7 +31,7 @@ from .locks import (
     tooling_lock_path,
     validate_structured_ref_dict,
 )
-from .refs import is_offline_fixture_git_ref, path_present, resolve_structured_ref_path
+from .refs import path_present, resolve_structured_ref_path
 
 
 REQUIRED_CLOSURE_REF_TO_MODULE = {
@@ -41,7 +43,6 @@ REQUIRED_CLOSURE_REF_TO_MODULE = {
 OPTIONAL_CLOSURE_REF_TO_MODULE: dict[str, str] = {}
 
 ZERO_PIN = "0000000000000000000000000000000000000000"
-RELEASE_PACKAGE_DIR_NAME = "DAS_TOOLS_v1_0_0"
 CANONICAL_SCHEMA_FILES = {
     "suite_lock.json": "schemas/das-standard/suite_lock.schema.json",
     "suite_version_closure.json": "schemas/das-standard/suite_version_closure.schema.json",
@@ -51,13 +52,20 @@ CANONICAL_SCHEMA_FILES = {
 }
 
 
-def _validate_canonical_schemas(suite_root: Path) -> list[str]:
+def _validate_canonical_schemas(
+    suite_root: Path, *, document_paths: dict[str, Path] | None = None,
+) -> list[str]:
     """Validate all released closure inputs with the selected checked-in Standard schemas."""
     import yaml
 
     issues: list[str] = []
+    checker = FormatChecker()
+    if "date-time" not in checker.checkers:
+        return ["missing date-time validator; install the declared rfc3339-validator dependency"]
     for document_name, schema_name in CANONICAL_SCHEMA_FILES.items():
-        document_path = suite_root / document_name
+        if document_paths is not None and document_name not in document_paths:
+            continue
+        document_path = document_paths[document_name] if document_paths is not None else suite_root / document_name
         schema_path = suite_root / schema_name
         if not schema_path.is_file():
             issues.append(f"missing canonical schema: {schema_name}")
@@ -66,7 +74,7 @@ def _validate_canonical_schemas(suite_root: Path) -> list[str]:
             text = document_path.read_text(encoding="utf-8")
             document = json.loads(text) if document_path.suffix == ".json" else yaml.safe_load(text)
             schema = json.loads(schema_path.read_text(encoding="utf-8"))
-            errors = sorted(Draft202012Validator(schema, registry=Registry()).iter_errors(document), key=lambda item: tuple(str(part) for part in item.path))
+            errors = sorted(Draft202012Validator(schema, registry=Registry(), format_checker=checker).iter_errors(document), key=lambda item: tuple(str(part) for part in item.path))
             for error in errors:
                 location = ".".join(str(item) for item in error.path) or "root"
                 issues.append(f"{document_name} canonical schema {location}: {error.message}")
@@ -222,38 +230,103 @@ def _observed_module_path(
     module: Module,
     lock_entry: dict[str, Any] | None,
 ) -> Path:
-    if _is_standalone_release_suite_root(suite_root):
-        return _release_sibling_module_path(suite_root, module)
-
     locked_ref = lock_entry.get("lockedRef") if isinstance(lock_entry, dict) else None
     resolved = resolve_structured_ref_path(suite_root, locked_ref)
-    if resolved is not None:
-        return resolved
-    if is_offline_fixture_git_ref(locked_ref):
-        sibling = (suite_root.parent / module.id).resolve()
-        if sibling.exists():
-            return sibling
-    configured = module_path(suite_root, module)
-    if path_present(configured):
-        return configured
-    sibling = (suite_root.parent / module.id).resolve()
-    if sibling.exists():
-        return sibling
-    return configured
+    return resolved if resolved is not None else module_path(suite_root, module)
 
 
-def _is_standalone_release_suite_root(suite_root: Path) -> bool:
-    suite_root = suite_root.resolve()
-    release_root = suite_root.parent
-    return suite_root.name == "das-suite" and (
-        release_root.name == RELEASE_PACKAGE_DIR_NAME
-        or (release_root / "RELEASE_SHA256SUMS").is_file()
-        or (release_root / "GIT_REVISION.txt").is_file()
-    )
+def validate_sync_lock(suite_root: Path, suite_lock: dict[str, Any], modules: list[Module]) -> list[str]:
+    """Check the selected lock's semantics after its Standard schema passes."""
+    issues: list[str] = []
+    modules_by_id = {module.id: module for module in modules}
+    suite_version = read_suite_version(suite_root)
+    for key in (
+        "schemaVersion",
+        "suiteId",
+        "suiteVersion",
+        "standardManifestVersion",
+        "syncMode",
+        "allowCloneTip",
+        "defaultOverridePolicy",
+        "modules",
+    ):
+        if suite_lock.get(key) in (None, ""):
+            issues.append(f"suite_lock.json missing {key}")
 
+    if suite_lock.get("suiteVersion") != suite_version:
+        issues.append("suite_lock.json suiteVersion must match VERSION/pyproject version")
+    if suite_lock.get("allowCloneTip") is not False:
+        issues.append("suite_lock.json allowCloneTip must be false")
+    if suite_lock.get("defaultOverridePolicy") not in OVERRIDE_POLICIES:
+        issues.append("suite_lock.json defaultOverridePolicy is invalid")
 
-def _release_sibling_module_path(suite_root: Path, module: Module) -> Path:
-    return (suite_root.resolve().parent / module.id).resolve()
+    lock_modules = suite_lock.get("modules", {})
+    if not isinstance(lock_modules, dict):
+        issues.append("suite_lock.json modules must be an object")
+    else:
+        for module_id in ("das-standard", "dasops", "cadence-oss"):
+            if module_id not in lock_modules:
+                issues.append(f"suite_lock.json modules must include {module_id}")
+
+        for module in modules:
+            if module.closure_ref is None:
+                continue
+            entry = lock_modules.get(module.id)
+            if entry is None:
+                issues.append(f"suite_lock.json missing lock entry for {module.id}")
+                continue
+            locked_ref = entry.get("lockedRef")
+            issues.extend(
+                validate_structured_ref_dict(
+                    locked_ref,
+                    f"suite_lock.modules.{module.id}.lockedRef",
+                )
+            )
+            for dependency in entry.get("dependsOn", []):
+                if dependency not in modules_by_id or not isinstance(lock_modules.get(dependency, {}).get("lockedRef"), dict):
+                    issues.append(f"suite_lock.modules.{module.id}.dependsOn: unknown or unlocked dependency {dependency}")
+            if isinstance(locked_ref, dict):
+                if locked_ref.get("kind") != "git" or locked_ref.get("pinType") != "commit" or not re.fullmatch(r"[0-9a-fA-F]{40}", str(locked_ref.get("pinValue", ""))):
+                    issues.append(f"suite_lock.modules.{module.id}.lockedRef requires git/commit with a full 40-character commit id")
+                if _is_placeholder_uri(str(locked_ref.get("uri", ""))):
+                    issues.append(
+                        f"suite_lock.modules.{module.id}.lockedRef URI contains a placeholder; must be an actionable ref"
+                    )
+                if _is_zero_pin(str(locked_ref.get("pinValue", ""))):
+                    issues.append(
+                        f"suite_lock.modules.{module.id}.lockedRef pinValue is a zero pin; must be an actionable commit or version"
+                    )
+                issues.extend(
+                    _validate_actionable_local_ref(
+                        suite_root,
+                        locked_ref,
+                        context=f"suite_lock.modules.{module.id}.lockedRef",
+                    )
+                )
+            if bool(entry.get("required")) != module.required:
+                issues.append(
+                    f"suite_lock.json required flag for {module.id} must match modules.yaml"
+                )
+            if module.role and entry.get("role") != module.role:
+                issues.append(
+                    f"suite_lock.json role for {module.id} must match modules.yaml role"
+                )
+            allowed_local_state = entry.get("allowedLocalState", [])
+            if not isinstance(allowed_local_state, list) or not allowed_local_state:
+                issues.append(
+                    f"suite_lock.modules.{module.id}.allowedLocalState must be a non-empty list"
+                )
+            elif any(state not in LOCAL_STATES for state in allowed_local_state):
+                issues.append(
+                    f"suite_lock.modules.{module.id}.allowedLocalState contains invalid values"
+                )
+            if entry.get("overridePolicy") not in OVERRIDE_POLICIES:
+                issues.append(
+                    f"suite_lock.modules.{module.id}.overridePolicy must be valid"
+                )
+    if set(suite_lock["modules"]) != set(modules_by_id):
+        issues.append("suite_lock.json module IDs must match modules.yaml")
+    return issues
 
 
 def validate_closure_artifacts(suite_root: Path) -> list[str]:
@@ -270,6 +343,16 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
     modules_by_id = {module.id: module for module in modules}
     if len(modules_by_id) != len(modules):
         return ["modules.yaml contains duplicate module IDs"]
+    seen_paths = {}
+    for module in modules:
+        try:
+            path = module_path(suite_root, module)
+        except ValueError as exc:
+            issues.append(str(exc))
+            continue
+        if path in seen_paths:
+            issues.append(f"modules.yaml duplicate path for {seen_paths[path]} and {module.id}: {module.path}")
+        seen_paths[path] = module.id
     suite_version = read_suite_version(suite_root)
 
     if "das-standard" not in modules_by_id:
@@ -397,85 +480,7 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
                 )
 
     if suite_lock is not None:
-        for key in (
-            "schemaVersion",
-            "suiteId",
-            "suiteVersion",
-            "standardManifestVersion",
-            "syncMode",
-            "allowCloneTip",
-            "defaultOverridePolicy",
-            "modules",
-        ):
-            if suite_lock.get(key) in (None, ""):
-                issues.append(f"suite_lock.json missing {key}")
-
-        if suite_lock.get("suiteVersion") != suite_version:
-            issues.append("suite_lock.json suiteVersion must match VERSION/pyproject version")
-        if suite_lock.get("allowCloneTip") is not False:
-            issues.append("suite_lock.json allowCloneTip must be false")
-        if suite_lock.get("defaultOverridePolicy") not in OVERRIDE_POLICIES:
-            issues.append("suite_lock.json defaultOverridePolicy is invalid")
-
-        lock_modules = suite_lock.get("modules", {})
-        if not isinstance(lock_modules, dict):
-            issues.append("suite_lock.json modules must be an object")
-        else:
-            for module_id in ("das-standard", "dasops", "cadence-oss"):
-                if module_id not in lock_modules:
-                    issues.append(f"suite_lock.json modules must include {module_id}")
-
-            for module in modules:
-                if module.closure_ref is None:
-                    continue
-                entry = lock_modules.get(module.id)
-                if entry is None:
-                    issues.append(f"suite_lock.json missing lock entry for {module.id}")
-                    continue
-                locked_ref = entry.get("lockedRef")
-                issues.extend(
-                    validate_structured_ref_dict(
-                        locked_ref,
-                        f"suite_lock.modules.{module.id}.lockedRef",
-                    )
-                )
-                if isinstance(locked_ref, dict):
-                    if _is_placeholder_uri(str(locked_ref.get("uri", ""))):
-                        issues.append(
-                            f"suite_lock.modules.{module.id}.lockedRef URI contains a placeholder; must be an actionable ref"
-                        )
-                    if _is_zero_pin(str(locked_ref.get("pinValue", ""))):
-                        issues.append(
-                            f"suite_lock.modules.{module.id}.lockedRef pinValue is a zero pin; must be an actionable commit or version"
-                        )
-                    issues.extend(
-                        _validate_actionable_local_ref(
-                            suite_root,
-                            locked_ref,
-                            context=f"suite_lock.modules.{module.id}.lockedRef",
-                        )
-                    )
-                if bool(entry.get("required")) != module.required:
-                    issues.append(
-                        f"suite_lock.json required flag for {module.id} must match modules.yaml"
-                    )
-                if module.role and entry.get("role") != module.role:
-                    issues.append(
-                        f"suite_lock.json role for {module.id} must match modules.yaml role"
-                    )
-                allowed_local_state = entry.get("allowedLocalState", [])
-                if not isinstance(allowed_local_state, list) or not allowed_local_state:
-                    issues.append(
-                        f"suite_lock.modules.{module.id}.allowedLocalState must be a non-empty list"
-                    )
-                elif any(state not in LOCAL_STATES for state in allowed_local_state):
-                    issues.append(
-                        f"suite_lock.modules.{module.id}.allowedLocalState contains invalid values"
-                    )
-                if entry.get("overridePolicy") not in OVERRIDE_POLICIES:
-                    issues.append(
-                        f"suite_lock.modules.{module.id}.overridePolicy must be valid"
-                    )
+        issues.extend(validate_sync_lock(suite_root, suite_lock, modules))
 
     if tooling_lock is not None:
         for key in ("schemaVersion", "standardManifestVersion", "sourceOfTruth", "verifyRuntime", "toolchain"):
@@ -544,6 +549,14 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
             profile_ids = set(profile.get("required", []))
             if catalog_ids != lock_ids or catalog_ids != profile_ids:
                 issues.append("modules.yaml, profiles/oss.json, and suite_lock.json must have the same module IDs")
+            for module in modules:
+                if profile.get("modules", {}).get(module.id) != {"tier": module.tier, "required": module.required}:
+                    issues.append(f"profiles/oss.json modules.{module.id} tier/required differs from modules.yaml")
+            expected_required = {m.id for m in modules if m.required}
+            expected_optional = catalog_ids - expected_required
+            selected = closure.get("closureProfiles", {}).get("oss-only", {})
+            if set(selected.get("requiredModules", [])) != expected_required or set(selected.get("optionalModules", [])) != expected_optional:
+                issues.append("suite_version_closure.json closureProfiles.oss-only required/optional modules differ from catalog")
             if set(profile.get("modules", {})) != catalog_ids:
                 issues.append("profiles/oss.json modules must match modules.yaml")
         except (OSError, ValueError):
@@ -567,16 +580,17 @@ def validate_closure_artifacts(suite_root: Path) -> list[str]:
     return issues
 
 
-def build_status_payload(suite_root: Path) -> list[dict[str, Any]]:
+def build_status_payload(suite_root: Path, *, lock_modules: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     suite_root = suite_root.resolve()
     manifest = load_manifest(suite_root)
     modules = parse_modules(manifest)
 
-    try:
-        suite_lock = load_suite_lock(suite_root)
-        lock_modules = suite_lock.get("modules", {})
-    except FileNotFoundError:
-        lock_modules = {}
+    if lock_modules is None:
+        try:
+            suite_lock = load_suite_lock(suite_root)
+            lock_modules = suite_lock.get("modules", {})
+        except FileNotFoundError:
+            lock_modules = {}
 
     payload: list[dict[str, Any]] = []
     for module in modules:
@@ -638,10 +652,30 @@ def build_status_payload(suite_root: Path) -> list[dict[str, Any]]:
             payload.append(item)
             continue
 
-        item["currentHead"] = git_output(path, "rev-parse", "HEAD") or None
-        item["currentRemote"] = git_output(path, "remote", "get-url", "origin") or None
-
-        is_dirty = _repo_dirty(path)
+        rc, top = run(["git", "rev-parse", "--show-toplevel"], cwd=path)
+        if rc or not top:
+            item.update(state="observation_error", error=f"{module.id}: cannot observe Git worktree root ({rc}): {top}")
+            payload.append(item)
+            continue
+        if Path(top).resolve() != path.resolve():
+            # A plain directory inside another worktree is local content, not
+            # a failed Git observation and never this component's identity.
+            item.update(state="present_local_override", note="module is not an independent Git worktree root")
+            payload.append(item)
+            continue
+        observations = {}
+        for name, args in (("currentHead", ["rev-parse", "HEAD"]), ("currentRemote", ["remote", "get-url", "origin"]), ("dirty", ["status", "--porcelain"])):
+            rc, out = run(["git", *args], cwd=path)
+            if rc:
+                item.update(state="observation_error", error=f"{module.id}: git {' '.join(args)} failed ({rc}): {out}")
+                break
+            observations[name] = out
+        if item["state"] == "observation_error":
+            payload.append(item)
+            continue
+        item["currentHead"] = observations["currentHead"]
+        item["currentRemote"] = observations["currentRemote"]
+        is_dirty = bool(observations["dirty"])
 
         if is_dirty:
             item["state"] = "dirty"
@@ -667,20 +701,6 @@ def build_status_payload(suite_root: Path) -> list[dict[str, Any]]:
             item["state"] = "present_local_override"
             payload.append(item)
             continue
-
-        # For offline fixture refs (*.invalid URIs) that resolve to a local
-        # sibling within the same git worktree, the stored pinValue becomes
-        # stale after any commit (all modules share one HEAD in a monorepo).
-        # In that case, treat the module as matching — the local workspace
-        # IS the source of truth and the repo was already verified as clean.
-        if is_offline_fixture_git_ref(locked_ref):
-            suite_toplevel = git_output(suite_root, "rev-parse", "--show-toplevel")
-            mod_toplevel = git_output(path, "rev-parse", "--show-toplevel")
-            if suite_toplevel and suite_toplevel == mod_toplevel:
-                item["expectedPinValue"] = item["currentHead"]
-                item["state"] = "present_locked_match"
-                payload.append(item)
-                continue
 
         expected_head = _expected_git_head(path, locked_ref)
         if expected_head and expected_head == item["currentHead"]:
