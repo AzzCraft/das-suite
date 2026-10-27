@@ -6,7 +6,7 @@
   "suiteVersion": "1.2.0-beta.1",
   "factoryVersion": "1.2.0-beta.1",
   "verifyRuntimeVersion": "1.2.0-beta.1",
-  "closureUpdatedAt": "2026-10-26T12:20:22Z",
+  "closureUpdatedAt": "2026-10-27T03:30:39Z",
   "suiteLockRef": {
     "kind": "file",
     "uri": "suite_lock.json",
@@ -44,7 +44,7 @@
       "kind": "git",
       "uri": "https://github.com/AzzCraft/dasops.git",
       "pinType": "commit",
-      "pinValue": "ae2047ae1e3977d815c30594cb8899e7eb2218ff",
+      "pinValue": "35af894e32816d77e4d01df7e749b6ce31ee973c",
       "floating": false,
       "notes": "Exact merged public source; no tag or joint qualification implied."
     },
@@ -52,7 +52,7 @@
       "kind": "git",
       "uri": "https://github.com/AzzCraft/cadence-oss.git",
       "pinType": "commit",
-      "pinValue": "6cb3ed56fc7947d8583022a3053599a02eb40def",
+      "pinValue": "a653f8f058e315d90708794f5328273d55ebc44f",
       "floating": false,
       "notes": "Exact merged public source; no tag or joint qualification implied."
     }
