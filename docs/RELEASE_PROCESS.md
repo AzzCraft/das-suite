@@ -41,8 +41,10 @@ inventory from the exact commit (tracked-file checksums and a
 package-verification code), a canonical tag-object/commit/version manifest, and
 `SHA256SUMS`.
 
-Those files are retained as an Actions artifact; the independently rebuilt
-source archive is covered by a GitHub artifact provenance attestation. The
+Those files are retained as an Actions artifact. A separate
+`das-suite-<version>-evidence.tar` containing the independently checked source
+archive, inventory, manifest and checksums is the direct subject of the GitHub
+artifact provenance attestation. The
 workflow has no repository write permission and does not publish a tag or
 GitHub Release. The generated source inventory records
 source-tree identity only; it is not a third-party dependency or
@@ -55,6 +57,27 @@ The workflow verifies an annotated tag and its target commit, not an approved
 GPG, SSH, or Sigstore signer. Cryptographic tag verification remains a
 protected publication gate until the release owner publishes the signer trust
 policy and verification evidence.
+
+## Download the exact attested bundle
+
+The trusted job retains its final tar for 30 days as
+`das-suite-attested-evidence-<run_id>-<run_attempt>`. Download it from the
+successful validation run, then verify the extracted tar itself:
+
+```bash
+repo=AzzCraft/das-suite
+gh run download "$run_id" --repo "$repo" \
+  --name "das-suite-attested-evidence-${run_id}-${run_attempt}" --dir "$download_dir"
+subject="$download_dir/das-suite-${version}-evidence.tar"
+sha256sum "$subject"
+gh attestation verify "$subject" --repo "$repo"
+```
+
+Check the verified repository, workflow, tag object and source commit against
+the selected run and its manifest; inspect the tar members and check their
+`SHA256SUMS` before use. Retain the exact bytes and verification output before
+expiry. The artifact download ZIP, inner source tarball and a later repacked
+tar are different objects and cannot replace the direct attestation subject.
 
 ## Version Closure
 
